@@ -22,7 +22,6 @@ st.markdown("""
 <style>
     @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
 
-    /* Hospital PACS Dark Slate + Calibrated Microscope Grid Background */
     .stApp {
         background-color: #070d14;
         background-image: 
@@ -34,13 +33,11 @@ st.markdown("""
         font-family: 'Inter', sans-serif;
     }
 
-    /* Clinical Sidebar Styling */
     section[data-testid="stSidebar"] {
         background: linear-gradient(180deg, #0b131e 0%, #091019 100%) !important;
         border-right: 1px solid rgba(56, 189, 248, 0.18);
     }
 
-    /* Top Hospital Information System (HIS) Banner */
     .his-banner {
         background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(12, 31, 48, 0.92) 100%);
         border: 1px solid rgba(56, 189, 248, 0.28);
@@ -95,7 +92,6 @@ st.markdown("""
         background: rgba(6, 78, 59, 0.35);
     }
 
-    /* Specimen Loader Card */
     .clinical-panel {
         background: rgba(15, 23, 42, 0.78);
         border: 1px solid rgba(148, 163, 184, 0.18);
@@ -112,12 +108,8 @@ st.markdown("""
         text-transform: uppercase;
         letter-spacing: 1.2px;
         margin-bottom: 10px;
-        display: flex;
-        align-items: center;
-        gap: 8px;
     }
 
-    /* Diagnostic Viewport Cards */
     .viewport-card {
         background: rgba(13, 22, 35, 0.88);
         border: 1px solid rgba(56, 189, 248, 0.22);
@@ -142,7 +134,6 @@ st.markdown("""
         font-size: 0.72rem;
     }
 
-    /* Verdict Alert Boxes */
     .verdict-cancer {
         background: linear-gradient(135deg, rgba(127, 29, 29, 0.55) 0%, rgba(69, 10, 10, 0.75) 100%);
         border: 1px solid #ef4444;
@@ -154,7 +145,6 @@ st.markdown("""
         text-align: center;
         font-size: 1.02rem;
         margin-bottom: 14px;
-        box-shadow: 0 4px 15px rgba(239, 68, 68, 0.2);
     }
     .verdict-normal {
         background: linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(2, 44, 34, 0.75) 100%);
@@ -167,10 +157,7 @@ st.markdown("""
         text-align: center;
         font-size: 1.02rem;
         margin-bottom: 14px;
-        box-shadow: 0 4px 15px rgba(16, 185, 129, 0.15);
     }
-
-    /* Telemetry Metric Readout */
     .prob-readout {
         background: rgba(9, 15, 26, 0.9);
         border: 1px solid rgba(56, 189, 248, 0.25);
@@ -184,7 +171,6 @@ st.markdown("""
         font-size: 0.78rem;
         color: #94a3b8;
         text-transform: uppercase;
-        letter-spacing: 0.8px;
     }
     .prob-value {
         font-family: 'JetBrains Mono', monospace;
@@ -210,11 +196,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. MODEL ARCHITECTURE & DYNAMIC LOADER
+# 2. DYNAMIC MODEL BUILDER & LOADER
 # ==========================================
 def build_resnet_from_state_dict(state_dict):
-    """Dynamically builds ResNet-34 matching the exact checkpoint tensor shapes."""
-    # Clean keys if saved with prefixes
+    """Dynamically adapts ResNet-34 to match checkpoint tensor shapes."""
     clean_sd = {}
     for k, v in state_dict.items():
         new_k = k
@@ -225,7 +210,7 @@ def build_resnet_from_state_dict(state_dict):
 
     base_model = models.resnet34(weights=None)
 
-    # Check if checkpoint used a 3x3 first conv layer (stem.0.weight or conv1.weight)
+    # Adapt initial convolution if kernel size differs (e.g. 3x3 vs 7x7)
     for conv_key in ["stem.0.weight", "conv1.weight"]:
         if conv_key in clean_sd and clean_sd[conv_key].shape != base_model.conv1.weight.shape:
             w_shape = clean_sd[conv_key].shape
@@ -237,27 +222,26 @@ def build_resnet_from_state_dict(state_dict):
                 padding=1,
                 bias=False
             )
-            # If there's a maxpool right after, adjust or keep it
-            base_model.maxpool = nn.Identity() # skip or keep depending on stem
+            base_model.maxpool = nn.Identity()
             break
 
-    # Handle classifier head dynamically based on checkpoint weight shape
-    in_features = base_model.fc.in_features
-    head_w_key = None
-    for k in clean_sd.keys():
-        if ("head" in k or "fc" in k) and k.endswith(".weight") and clean_sd[k].ndim == 2:
-            head_w_key = k
+    # Dynamically match classifier head weight dimensions
+    fc_w_key = None
+    for k in ["fc.weight", "head.1.weight", "head.weight", "fc.1.weight", "fc.4.weight"]:
+        if k in clean_sd and clean_sd[k].ndim == 2:
+            fc_w_key = k
+            break
+    if not fc_w_key:
+        for k, v in clean_sd.items():
+            if ("fc" in k or "head" in k) and v.ndim == 2:
+                fc_w_key = k
+                break
 
-    if head_w_key:
-        out_features, in_features_ckpt = clean_sd[head_w_key].shape
-        # Check if head is sequential
-        if "head." in head_w_key or "fc." in head_w_key:
-            base_model.fc = nn.Sequential(
-                nn.Dropout(0.5),
-                nn.Linear(in_features_ckpt, out_features)
-            )
-        else:
-            base_model.fc = nn.Linear(in_features_ckpt, out_features)
+    if fc_w_key:
+        out_f, in_f = clean_sd[fc_w_key].shape
+        base_model.fc = nn.Linear(in_f, out_f)
+    else:
+        base_model.fc = nn.Linear(512, 1)
 
     base_model.load_state_dict(clean_sd, strict=False)
     return base_model
@@ -280,7 +264,6 @@ def load_deployment_bundle(checkpoint_path: str):
     model.eval()
     return model, device, threshold, val_auc, test_auc
 
-
 # ==========================================
 # 3. PREPROCESSING, 4x TTA & GRAD-CAM
 # ==========================================
@@ -291,7 +274,6 @@ eval_transform = transforms.Compose([
 ])
 
 def predict_with_4x_tta(model, img_pil, device):
-    """Runs 4x rotational Test-Time Augmentation (0, 90, 180, 270 deg)."""
     angles = [0, 90, 180, 270]
     rot_probs = {}
     with torch.no_grad():
@@ -304,9 +286,7 @@ def predict_with_4x_tta(model, img_pil, device):
     mean_prob = float(np.mean(list(rot_probs.values())))
     return mean_prob, rot_probs
 
-
 def generate_gradcam(model, img_pil, device):
-    """Computes Grad-CAM spatial attention over the final ResNet layer4 block."""
     activations = []
     gradients = []
 
@@ -344,9 +324,7 @@ def generate_gradcam(model, img_pil, device):
         h_f.remove()
         h_b.remove()
 
-
 def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129)):
-    """Draws the 32x32 center diagnostic region on the 96x96 patch."""
     base_rgb = np.array(img_pil.resize((96, 96)).convert("RGB"))
     if cam is not None:
         heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
@@ -355,11 +333,9 @@ def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129)):
     else:
         blended = base_rgb.copy()
 
-    # Scale up to 288x288 for crisp display in the UI
     display_img = cv2.resize(blended, (288, 288), interpolation=cv2.INTER_NEAREST)
     cv2.rectangle(display_img, (96, 96), (192, 192), roi_color, 2)
     return display_img
-
 
 # ==========================================
 # 4. SIDEBAR: SYSTEM CALIBRATION & TELEMETRY
@@ -396,15 +372,6 @@ with st.sidebar:
     c_m1.metric("Validation AUC", f"{val_auc:.4f}")
     c_m2.metric("Test AUC (4x TTA)", f"{test_auc:.4f}")
 
-    st.markdown("---")
-    st.markdown("### 🧬 Clinical Protocol")
-    st.caption(
-        "**PCam Center Rule:** Metastasis is scored positive if ≥1 tumor cell "
-        "occupies the central **32×32 px** zone (marked by the target ROI box). "
-        "Outer tissue provides morphological context."
-    )
-
-
 # ==========================================
 # 5. MAIN HOSPITAL WORKSTATION INTERFACE
 # ==========================================
@@ -423,7 +390,6 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-# Specimen Acquisition Panel (Sample Selector + Custom Upload)
 st.markdown('<div class="clinical-panel"><div class="panel-header">🧪 SPECIMEN ACQUISITION & REFERENCE BIOPSY LOADER</div>', unsafe_allow_html=True)
 
 acq_col1, acq_col2 = st.columns([1.15, 1.35])
@@ -457,7 +423,6 @@ with acq_col2:
 
 st.markdown('</div>', unsafe_allow_html=True)
 
-# Determine Active Image Source (Uploaded file overrides sample selector if present)
 active_img = None
 specimen_id = None
 source_mode = None
@@ -474,7 +439,7 @@ elif sample_options.get(selected_sample_label) is not None:
         source_mode = "REFERENCE BIOPSY BANK"
 
 # ==========================================
-# 6. DIAGNOSTIC VIEWPORT & GRAD-CAM REPORT
+# 6. DIAGNOSTIC VIEWPORT & REPORT
 # ==========================================
 if active_img is not None and model_loaded:
     img_np = np.array(active_img)
