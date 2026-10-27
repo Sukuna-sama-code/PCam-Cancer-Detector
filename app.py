@@ -196,10 +196,10 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # ==========================================
-# 2. DYNAMIC MODEL BUILDER & LOADER
+# 2. BULLETPROOF DYNAMIC MODEL LOADER
 # ==========================================
 def build_resnet_from_state_dict(state_dict):
-    """Dynamically adapts ResNet-34 to match checkpoint tensor shapes."""
+    """Dynamically reconstructs ResNet-34 matching exact checkpoint tensor shapes."""
     clean_sd = {}
     for k, v in state_dict.items():
         new_k = k
@@ -210,7 +210,7 @@ def build_resnet_from_state_dict(state_dict):
 
     base_model = models.resnet34(weights=None)
 
-    # Adapt initial convolution if kernel size differs (e.g. 3x3 vs 7x7)
+    # Adapt initial convolution if kernel size differs
     for conv_key in ["stem.0.weight", "conv1.weight"]:
         if conv_key in clean_sd and clean_sd[conv_key].shape != base_model.conv1.weight.shape:
             w_shape = clean_sd[conv_key].shape
@@ -225,26 +225,88 @@ def build_resnet_from_state_dict(state_dict):
             base_model.maxpool = nn.Identity()
             break
 
-    # Dynamically match classifier head weight dimensions
-    fc_w_key = None
-    for k in ["fc.weight", "head.1.weight", "head.weight", "fc.1.weight", "fc.4.weight"]:
-        if k in clean_sd and clean_sd[k].ndim == 2:
-            fc_w_key = k
-            break
-    if not fc_w_key:
-        for k, v in clean_sd.items():
-            if ("fc" in k or "head" in k) and v.ndim == 2:
-                fc_w_key = k
-                break
+    # Determine classifier prefix ('head.' or 'fc.')
+    classifier_prefix = None
+    if any(k.startswith("head.") for k in clean_sd.keys()):
+        classifier_prefix = "head"
+    elif any(k.startswith("fc.") for k in clean_sd.keys()):
+        classifier_prefix = "fc"
 
-    if fc_w_key:
-        out_f, in_f = clean_sd[fc_w_key].shape
-        base_model.fc = nn.Linear(in_f, out_f)
+    if classifier_prefix:
+        fc_keys = [k for k in clean_sd.keys() if k.startswith(f"{classifier_prefix}.")]
+        indices = set()
+        for k in fc_keys:
+            parts = k.split(".")
+            if len(parts) > 1 and parts[1].isdigit():
+                indices.add(int(parts[1]))
+        
+        if indices:
+            max_idx = max(indices)
+            layers = []
+            for idx in range(max_idx + 1):
+                w_key = f"{classifier_prefix}.{idx}.weight"
+                b_key = f"{classifier_prefix}.{idx}.bias"
+                if w_key in clean_sd:
+                    w_tensor = clean_sd[w_key]
+                    if w_tensor.ndim == 2:
+                        out_f, in_f = w_tensor.shape
+                        has_bias = b_key in clean_sd
+                        layers.append(nn.Linear(in_f, out_f, bias=has_bias))
+                    elif w_tensor.ndim == 1:
+                        layers.append(nn.BatchNorm1d(w_tensor.shape[0]))
+                else:
+                    layers.append(nn.ReLU(inplace=True))
+            classifier_module = nn.Sequential(*layers)
+        else:
+            w_key = f"{classifier_prefix}.weight"
+            if w_key in clean_sd:
+                out_f, in_f = clean_sd[w_key].shape
+                has_bias = f"{classifier_prefix}.bias" in clean_sd
+                classifier_module = nn.Linear(in_f, out_f, bias=has_bias)
+            else:
+                classifier_module = nn.Linear(512, 1)
+
+        if classifier_prefix == "head":
+            base_model.head = classifier_module
+        else:
+            base_model.fc = classifier_module
     else:
         base_model.fc = nn.Linear(512, 1)
 
-    base_model.load_state_dict(clean_sd, strict=False)
-    return base_model
+    # Custom wrapper class if checkpoint uses 'head' instead of standard 'fc'
+    if any(k.startswith("head.") for k in clean_sd.keys()):
+        class ResNetWithHead(nn.Module):
+            def __init__(self, resnet_base, head_module):
+                super().__init__()
+                self.conv1 = resnet_base.conv1
+                self.bn1 = resnet_base.bn1
+                self.relu = resnet_base.relu
+                self.maxpool = resnet_base.maxpool
+                self.layer1 = resnet_base.layer1
+                self.layer2 = resnet_base.layer2
+                self.layer3 = resnet_base.layer3
+                self.layer4 = resnet_base.layer4
+                self.avgpool = resnet_base.avgpool
+                self.head = head_module
+            def forward(self, x):
+                x = self.conv1(x)
+                x = self.bn1(x)
+                x = self.relu(x)
+                x = self.maxpool(x)
+                x = self.layer1(x)
+                x = self.layer2(x)
+                x = self.layer3(x)
+                x = self.layer4(x)
+                x = self.avgpool(x)
+                x = torch.flatten(x, 1)
+                x = self.head(x)
+                return x
+        model = ResNetWithHead(base_model, base_model.head)
+    else:
+        model = base_model
+
+    model.load_state_dict(clean_sd, strict=False)
+    return model
 
 @st.cache_resource
 def load_deployment_bundle(checkpoint_path: str):
