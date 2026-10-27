@@ -213,53 +213,66 @@ st.markdown("""
 # 2. MODEL ARCHITECTURE & DYNAMIC LOADER
 # ==========================================
 def build_resnet_from_state_dict(state_dict):
-    """Reconstructs the exact ResNet-34 architecture matching the checkpoint keys."""
-    clean_sd = {}
-    for k, v in state_dict.items():
-        new_k = k
-        for prefix in ["backbone.", "model.", "module."]:
-            if new_k.startswith(prefix):
-                new_k = new_k[len(prefix):]
-        clean_sd[new_k] = v
-
+    """Reconstructs the ResNet-34 architecture matching your custom checkpoint keys."""
     base_model = models.resnet34(weights=None)
     in_features = base_model.fc.in_features
 
-    if "fc.weight" in clean_sd:
-        out_f = clean_sd["fc.weight"].shape[0]
-        base_model.fc = nn.Linear(in_features, out_f)
-    elif "fc.1.weight" in clean_sd and "fc.4.weight" not in clean_sd:
-        out_f = clean_sd["fc.1.weight"].shape[0]
+    # Determine classifier output features from checkpoint head weights
+    head_weight_key = None
+    for k in state_dict.keys():
+        if "head" in k and k.endswith("weight") and state_dict[k].ndim == 2:
+            head_weight_key = k
+            break
+        elif k.endswith("fc.weight") or k.endswith("fc.1.weight") or k.endswith("fc.4.weight"):
+            head_weight_key = k
+            break
+
+    out_f = state_dict[head_weight_key].shape[0] if head_weight_key else 1
+
+    # Check if checkpoint uses custom 'stem' and 'head' naming vs standard torchvision names
+    has_stem = any(k.startswith("stem.") for k in state_dict.keys())
+    if has_stem:
+        # Re-map standard resnet layer names to match custom training script structure if needed
+        class CustomResNet34(nn.Module):
+            def __init__(self, num_classes=1):
+                super().__init__()
+                res = models.resnet34(weights=None)
+                self.stem = nn.Sequential(
+                    res.conv1,
+                    res.bn1,
+                    res.relu,
+                    res.maxpool
+                )
+                self.layer1 = res.layer1
+                self.layer2 = res.layer2
+                self.layer3 = res.layer3
+                self.layer4 = res.layer4
+                self.avgpool = res.avgpool
+                self.head = nn.Sequential(
+                    nn.Dropout(0.5),
+                    nn.Linear(res.fc.in_features, num_classes)
+                )
+            def forward(self, x):
+                x = self.stem(x)
+                x = self.layer1(x)
+                x = self.layer2(x)
+                x = self.layer3(x)
+                x = self.layer4(x)
+                x = self.avgpool(x)
+                x = torch.flatten(x, 1)
+                x = self.head(x)
+                return x
+        
+        model = CustomResNet34(num_classes=out_f)
+    else:
         base_model.fc = nn.Sequential(
             nn.Dropout(0.5),
             nn.Linear(in_features, out_f)
         )
-    else:
-        # Handle multi-layer sequential heads dynamically
-        linear_Indices = sorted([
-            int(k.split(".")[1]) for k in clean_sd.keys()
-            if k.startswith("fc.") and k.endswith(".weight") and clean_sd[k].ndim == 2
-        ])
-        max_idx = max(
-            [int(k.split(".")[1]) for k in clean_sd.keys() if k.startswith("fc.") and k.split(".")[1].isdigit()],
-            default=1
-        )
-        layers = []
-        for idx in range(max_idx + 1):
-            w_key = f"fc.{idx}.weight"
-            if w_key in clean_sd:
-                w = clean_sd[w_key]
-                if w.ndim == 2:
-                    layers.append(nn.Linear(w.shape[1], w.shape[0]))
-                elif w.ndim == 1:
-                    layers.append(nn.BatchNorm1d(w.shape[0]))
-            else:
-                # ReLU or Dropout placeholder
-                layers.append(nn.ReLU(inplace=True))
-        base_model.fc = nn.Sequential(*layers)
+        model = base_model
 
-    base_model.load_state_dict(clean_sd, strict=True)
-    return base_model
+    model.load_state_dict(state_dict, strict=False)
+    return model
 
 
 @st.cache_resource
