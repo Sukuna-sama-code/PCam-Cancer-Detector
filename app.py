@@ -213,67 +213,54 @@ st.markdown("""
 # 2. MODEL ARCHITECTURE & DYNAMIC LOADER
 # ==========================================
 def build_resnet_from_state_dict(state_dict):
-    """Reconstructs the ResNet-34 architecture matching your custom checkpoint keys."""
+    """Dynamically builds ResNet-34 matching the exact checkpoint tensor shapes."""
+    # Clean keys if saved with prefixes
+    clean_sd = {}
+    for k, v in state_dict.items():
+        new_k = k
+        for prefix in ["backbone.", "model.", "module."]:
+            if new_k.startswith(prefix):
+                new_k = new_k[len(prefix):]
+        clean_sd[new_k] = v
+
     base_model = models.resnet34(weights=None)
+
+    # Check if checkpoint used a 3x3 first conv layer (stem.0.weight or conv1.weight)
+    for conv_key in ["stem.0.weight", "conv1.weight"]:
+        if conv_key in clean_sd and clean_sd[conv_key].shape != base_model.conv1.weight.shape:
+            w_shape = clean_sd[conv_key].shape
+            base_model.conv1 = nn.Conv2d(
+                in_channels=w_shape[1],
+                out_channels=w_shape[0],
+                kernel_size=w_shape[2:],
+                stride=1,
+                padding=1,
+                bias=False
+            )
+            # If there's a maxpool right after, adjust or keep it
+            base_model.maxpool = nn.Identity() # skip or keep depending on stem
+            break
+
+    # Handle classifier head dynamically based on checkpoint weight shape
     in_features = base_model.fc.in_features
+    head_w_key = None
+    for k in clean_sd.keys():
+        if ("head" in k or "fc" in k) and k.endswith(".weight") and clean_sd[k].ndim == 2:
+            head_w_key = k
 
-    # Determine classifier output features from checkpoint head weights
-    head_weight_key = None
-    for k in state_dict.keys():
-        if "head" in k and k.endswith("weight") and state_dict[k].ndim == 2:
-            head_weight_key = k
-            break
-        elif k.endswith("fc.weight") or k.endswith("fc.1.weight") or k.endswith("fc.4.weight"):
-            head_weight_key = k
-            break
+    if head_w_key:
+        out_features, in_features_ckpt = clean_sd[head_w_key].shape
+        # Check if head is sequential
+        if "head." in head_w_key or "fc." in head_w_key:
+            base_model.fc = nn.Sequential(
+                nn.Dropout(0.5),
+                nn.Linear(in_features_ckpt, out_features)
+            )
+        else:
+            base_model.fc = nn.Linear(in_features_ckpt, out_features)
 
-    out_f = state_dict[head_weight_key].shape[0] if head_weight_key else 1
-
-    # Check if checkpoint uses custom 'stem' and 'head' naming vs standard torchvision names
-    has_stem = any(k.startswith("stem.") for k in state_dict.keys())
-    if has_stem:
-        # Re-map standard resnet layer names to match custom training script structure if needed
-        class CustomResNet34(nn.Module):
-            def __init__(self, num_classes=1):
-                super().__init__()
-                res = models.resnet34(weights=None)
-                self.stem = nn.Sequential(
-                    res.conv1,
-                    res.bn1,
-                    res.relu,
-                    res.maxpool
-                )
-                self.layer1 = res.layer1
-                self.layer2 = res.layer2
-                self.layer3 = res.layer3
-                self.layer4 = res.layer4
-                self.avgpool = res.avgpool
-                self.head = nn.Sequential(
-                    nn.Dropout(0.5),
-                    nn.Linear(res.fc.in_features, num_classes)
-                )
-            def forward(self, x):
-                x = self.stem(x)
-                x = self.layer1(x)
-                x = self.layer2(x)
-                x = self.layer3(x)
-                x = self.layer4(x)
-                x = self.avgpool(x)
-                x = torch.flatten(x, 1)
-                x = self.head(x)
-                return x
-        
-        model = CustomResNet34(num_classes=out_f)
-    else:
-        base_model.fc = nn.Sequential(
-            nn.Dropout(0.5),
-            nn.Linear(in_features, out_f)
-        )
-        model = base_model
-
-    model.load_state_dict(state_dict, strict=False)
-    return model
-
+    base_model.load_state_dict(clean_sd, strict=False)
+    return base_model
 
 @st.cache_resource
 def load_deployment_bundle(checkpoint_path: str):
