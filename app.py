@@ -195,118 +195,61 @@ st.markdown("""
 </style>
 """, unsafe_allow_html=True)
 
+
 # ==========================================
-# 2. BULLETPROOF DYNAMIC MODEL LOADER
+# 2. CENTER-AWARE RESNET-34 ARCHITECTURE
 # ==========================================
-def build_resnet_from_state_dict(state_dict):
-    """Dynamically reconstructs ResNet-34 matching exact checkpoint tensor shapes."""
-    clean_sd = {}
-    for k, v in state_dict.items():
-        new_k = k
-        for prefix in ["backbone.", "model.", "module."]:
-            if new_k.startswith(prefix):
-                new_k = new_k[len(prefix):]
-        clean_sd[new_k] = v
+class CenterAwareResNet34(nn.Module):
+    """
+    Matches the exact checkpoint structure:
+    - stem: 3x3 Conv2d(3, 64) + BatchNorm2d(64) + ReLU (no maxpool downsampling)
+    - layer1..layer4: Standard ResNet-34 residual stages
+    - Dual Pooling: Concatenates Global Avg Pool (512) + Center 32x32 ROI Avg Pool (512) -> 1024-dim
+    - head: Linear(1024, 256) -> BatchNorm1d(256) -> ReLU -> Dropout -> Linear(256, 1)
+    """
+    def __init__(self):
+        super().__init__()
+        base = models.resnet34(weights=None)
 
-    base_model = models.resnet34(weights=None)
+        self.stem = nn.Sequential(
+            nn.Conv2d(3, 64, kernel_size=3, stride=1, padding=1, bias=False),
+            nn.BatchNorm2d(64),
+            nn.ReLU(inplace=True)
+        )
+        self.layer1 = base.layer1
+        self.layer2 = base.layer2
+        self.layer3 = base.layer3
+        self.layer4 = base.layer4
 
-    # Adapt initial convolution if kernel size differs
-    for conv_key in ["stem.0.weight", "conv1.weight"]:
-        if conv_key in clean_sd and clean_sd[conv_key].shape != base_model.conv1.weight.shape:
-            w_shape = clean_sd[conv_key].shape
-            base_model.conv1 = nn.Conv2d(
-                in_channels=w_shape[1],
-                out_channels=w_shape[0],
-                kernel_size=w_shape[2:],
-                stride=1,
-                padding=1,
-                bias=False
-            )
-            base_model.maxpool = nn.Identity()
-            break
+        self.head = nn.Sequential(
+            nn.Linear(512 * 2, 256),
+            nn.BatchNorm1d(256),
+            nn.ReLU(inplace=True),
+            nn.Dropout(0.5),
+            nn.Linear(256, 1)
+        )
 
-    # Determine classifier prefix ('head.' or 'fc.')
-    classifier_prefix = None
-    if any(k.startswith("head.") for k in clean_sd.keys()):
-        classifier_prefix = "head"
-    elif any(k.startswith("fc.") for k in clean_sd.keys()):
-        classifier_prefix = "fc"
+    def forward(self, x):
+        x = self.stem(x)
+        x = self.layer1(x)
+        x = self.layer2(x)
+        x = self.layer3(x)
+        feat = self.layer4(x)  # Shape: [B, 512, 12, 12] for 96x96 input
 
-    if classifier_prefix:
-        fc_keys = [k for k in clean_sd.keys() if k.startswith(f"{classifier_prefix}.")]
-        indices = set()
-        for k in fc_keys:
-            parts = k.split(".")
-            if len(parts) > 1 and parts[1].isdigit():
-                indices.add(int(parts[1]))
-        
-        if indices:
-            max_idx = max(indices)
-            layers = []
-            for idx in range(max_idx + 1):
-                w_key = f"{classifier_prefix}.{idx}.weight"
-                b_key = f"{classifier_prefix}.{idx}.bias"
-                if w_key in clean_sd:
-                    w_tensor = clean_sd[w_key]
-                    if w_tensor.ndim == 2:
-                        out_f, in_f = w_tensor.shape
-                        has_bias = b_key in clean_sd
-                        layers.append(nn.Linear(in_f, out_f, bias=has_bias))
-                    elif w_tensor.ndim == 1:
-                        layers.append(nn.BatchNorm1d(w_tensor.shape[0]))
-                else:
-                    layers.append(nn.ReLU(inplace=True))
-            classifier_module = nn.Sequential(*layers)
-        else:
-            w_key = f"{classifier_prefix}.weight"
-            if w_key in clean_sd:
-                out_f, in_f = clean_sd[w_key].shape
-                has_bias = f"{classifier_prefix}.bias" in clean_sd
-                classifier_module = nn.Linear(in_f, out_f, bias=has_bias)
-            else:
-                classifier_module = nn.Linear(512, 1)
+        # 1. Global context representation (full 96x96 patch)
+        global_pool = F.adaptive_avg_pool2d(feat, (1, 1)).flatten(1)  # [B, 512]
 
-        if classifier_prefix == "head":
-            base_model.head = classifier_module
-        else:
-            base_model.fc = classifier_module
-    else:
-        base_model.fc = nn.Linear(512, 1)
+        # 2. Center 32x32 ROI representation (middle third of feature map: [4:8, 4:8])
+        h, w = feat.shape[2], feat.shape[3]
+        h1, h2 = max(0, h // 3), min(h, 2 * (h // 3))
+        w1, w2 = max(0, w // 3), min(w, 2 * (w // 3))
+        center_feat = feat[:, :, h1:h2, w1:w2]
+        center_pool = F.adaptive_avg_pool2d(center_feat, (1, 1)).flatten(1)  # [B, 512]
 
-    # Custom wrapper class if checkpoint uses 'head' instead of standard 'fc'
-    if any(k.startswith("head.") for k in clean_sd.keys()):
-        class ResNetWithHead(nn.Module):
-            def __init__(self, resnet_base, head_module):
-                super().__init__()
-                self.conv1 = resnet_base.conv1
-                self.bn1 = resnet_base.bn1
-                self.relu = resnet_base.relu
-                self.maxpool = resnet_base.maxpool
-                self.layer1 = resnet_base.layer1
-                self.layer2 = resnet_base.layer2
-                self.layer3 = resnet_base.layer3
-                self.layer4 = resnet_base.layer4
-                self.avgpool = resnet_base.avgpool
-                self.head = head_module
-            def forward(self, x):
-                x = self.conv1(x)
-                x = self.bn1(x)
-                x = self.relu(x)
-                x = self.maxpool(x)
-                x = self.layer1(x)
-                x = self.layer2(x)
-                x = self.layer3(x)
-                x = self.layer4(x)
-                x = self.avgpool(x)
-                x = torch.flatten(x, 1)
-                x = self.head(x)
-                return x
-        model = ResNetWithHead(base_model, base_model.head)
-    else:
-        model = base_model
+        # Concatenate into [B, 1024] for self.head
+        combined = torch.cat([global_pool, center_pool], dim=1)
+        return self.head(combined)
 
-    model.load_state_dict(clean_sd, strict=False)
-    return model
 
 @st.cache_resource
 def load_deployment_bundle(checkpoint_path: str):
@@ -322,9 +265,19 @@ def load_deployment_bundle(checkpoint_path: str):
         state_dict = checkpoint.state_dict()
         threshold, val_auc, test_auc = 0.126, 0.9667, 0.9534
 
-    model = build_resnet_from_state_dict(state_dict).to(device)
+    clean_sd = {}
+    for k, v in state_dict.items():
+        new_k = k
+        for prefix in ["backbone.", "model.", "module."]:
+            if new_k.startswith(prefix):
+                new_k = new_k[len(prefix):]
+        clean_sd[new_k] = v
+
+    model = CenterAwareResNet34().to(device)
+    model.load_state_dict(clean_sd, strict=True)
     model.eval()
     return model, device, threshold, val_auc, test_auc
+
 
 # ==========================================
 # 3. PREPROCESSING, 4x TTA & GRAD-CAM
@@ -347,6 +300,7 @@ def predict_with_4x_tta(model, img_pil, device):
             rot_probs[f"{angle}°"] = prob
     mean_prob = float(np.mean(list(rot_probs.values())))
     return mean_prob, rot_probs
+
 
 def generate_gradcam(model, img_pil, device):
     activations = []
@@ -386,6 +340,7 @@ def generate_gradcam(model, img_pil, device):
         h_f.remove()
         h_b.remove()
 
+
 def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129)):
     base_rgb = np.array(img_pil.resize((96, 96)).convert("RGB"))
     if cam is not None:
@@ -398,6 +353,7 @@ def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129)):
     display_img = cv2.resize(blended, (288, 288), interpolation=cv2.INTER_NEAREST)
     cv2.rectangle(display_img, (96, 96), (192, 192), roi_color, 2)
     return display_img
+
 
 # ==========================================
 # 4. SIDEBAR: SYSTEM CALIBRATION & TELEMETRY
@@ -433,6 +389,15 @@ with st.sidebar:
     c_m1, c_m2 = st.columns(2)
     c_m1.metric("Validation AUC", f"{val_auc:.4f}")
     c_m2.metric("Test AUC (4x TTA)", f"{test_auc:.4f}")
+
+    st.markdown("---")
+    st.markdown("### 🧬 Clinical Protocol")
+    st.caption(
+        "**PCam Center Rule:** Metastasis is scored positive if ≥1 tumor cell "
+        "occupies the central **32×32 px** zone (marked by the target ROI box). "
+        "Outer tissue provides morphological context."
+    )
+
 
 # ==========================================
 # 5. MAIN HOSPITAL WORKSTATION INTERFACE
@@ -499,6 +464,7 @@ elif sample_options.get(selected_sample_label) is not None:
         active_img = Image.open(sample_path).convert("RGB")
         specimen_id = os.path.basename(sample_path)
         source_mode = "REFERENCE BIOPSY BANK"
+
 
 # ==========================================
 # 6. DIAGNOSTIC VIEWPORT & REPORT
