@@ -200,13 +200,6 @@ st.markdown("""
 # 2. CENTER-AWARE RESNET-34 ARCHITECTURE
 # ==========================================
 class CenterAwareResNet34(nn.Module):
-    """
-    Matches the exact checkpoint structure:
-    - stem: 3x3 Conv2d(3, 64) + BatchNorm2d(64) + ReLU (no maxpool downsampling)
-    - layer1..layer4: Standard ResNet-34 residual stages
-    - Dual Pooling: Concatenates Global Avg Pool (512) + Center 32x32 ROI Avg Pool (512) -> 1024-dim
-    - head: Linear(1024, 256) -> BatchNorm1d(256) -> ReLU -> Dropout -> Linear(256, 1)
-    """
     def __init__(self):
         super().__init__()
         base = models.resnet34(weights=None)
@@ -234,19 +227,16 @@ class CenterAwareResNet34(nn.Module):
         x = self.layer1(x)
         x = self.layer2(x)
         x = self.layer3(x)
-        feat = self.layer4(x)  # Shape: [B, 512, 12, 12] for 96x96 input
+        feat = self.layer4(x)
 
-        # 1. Global context representation (full 96x96 patch)
-        global_pool = F.adaptive_avg_pool2d(feat, (1, 1)).flatten(1)  # [B, 512]
+        global_pool = F.adaptive_avg_pool2d(feat, (1, 1)).flatten(1)
 
-        # 2. Center 32x32 ROI representation (middle third of feature map: [4:8, 4:8])
         h, w = feat.shape[2], feat.shape[3]
         h1, h2 = max(0, h // 3), min(h, 2 * (h // 3))
         w1, w2 = max(0, w // 3), min(w, 2 * (w // 3))
         center_feat = feat[:, :, h1:h2, w1:w2]
-        center_pool = F.adaptive_avg_pool2d(center_feat, (1, 1)).flatten(1)  # [B, 512]
+        center_pool = F.adaptive_avg_pool2d(center_feat, (1, 1)).flatten(1)
 
-        # Concatenate into [B, 1024] for self.head
         combined = torch.cat([global_pool, center_pool], dim=1)
         return self.head(combined)
 
@@ -280,7 +270,7 @@ def load_deployment_bundle(checkpoint_path: str):
 
 
 # ==========================================
-# 3. PREPROCESSING, 4x TTA & GRAD-CAM
+# 3. PREPROCESSING, 4x TTA, GRAD-CAM & OPTICS
 # ==========================================
 eval_transform = transforms.Compose([
     transforms.Resize((96, 96)),
@@ -334,24 +324,63 @@ def generate_gradcam(model, img_pil, device):
         cam = np.maximum(cam, 0)
         if cam.max() > 0:
             cam = cam / (cam.max() + 1e-8)
-        cam_resized = cv2.resize(cam, (96, 96))
+        cam_resized = cv2.resize(cam, (96, 96), interpolation=cv2.INTER_CUBIC)
         return cam_resized
     finally:
         h_f.remove()
         h_b.remove()
 
 
-def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129)):
-    base_rgb = np.array(img_pil.resize((96, 96)).convert("RGB"))
-    if cam is not None:
-        heatmap = cv2.applyColorMap(np.uint8(255 * cam), cv2.COLORMAP_JET)
-        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
-        blended = cv2.addWeighted(base_rgb, 0.58, heatmap, 0.42, 0)
-    else:
-        blended = base_rgb.copy()
+def enhance_histopathology_patch(rgb_96, sharpen_strength=1.25, apply_clahe=True):
+    """
+    6x Super-Resolution Optical Pipeline (96x96 -> 576x576):
+    1. Lanczos-4 Sinc Interpolation (eliminates blocky nearest-neighbor pixels)
+    2. LAB-Space Luminance CLAHE (enhances chromatin/nuclear boundaries without shifting H&E stain)
+    3. Fine-Radius Unsharp Masking (sharpens cellular membranes)
+    """
+    target_size = (576, 576)
+    upscaled = cv2.resize(rgb_96, target_size, interpolation=cv2.INTER_LANCZOS4)
 
-    display_img = cv2.resize(blended, (288, 288), interpolation=cv2.INTER_NEAREST)
-    cv2.rectangle(display_img, (96, 96), (192, 192), roi_color, 2)
+    if apply_clahe:
+        lab = cv2.cvtColor(upscaled, cv2.COLOR_RGB2LAB)
+        l_chan, a_chan, b_chan = cv2.split(lab)
+        clahe = cv2.createCLAHE(clipLimit=1.6, tileGridSize=(8, 8))
+        l_enhanced = clahe.apply(l_chan)
+        # Blend 55% CLAHE luminance + 45% original luminance for natural H&E staining
+        l_blended = cv2.addWeighted(l_enhanced, 0.55, l_chan, 0.45, 0)
+        upscaled = cv2.cvtColor(cv2.merge((l_blended, a_chan, b_chan)), cv2.COLOR_LAB2RGB)
+
+    if sharpen_strength > 0:
+        gaussian_blur = cv2.GaussianBlur(upscaled, (0, 0), sigmaX=1.4)
+        upscaled = cv2.addWeighted(
+            upscaled, 1.0 + sharpen_strength,
+            gaussian_blur, -sharpen_strength, 0
+        )
+
+    return np.clip(upscaled, 0, 255).astype(np.uint8)
+
+
+def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129), enhance=True, sharpen_strength=1.25):
+    base_rgb = np.array(img_pil.resize((96, 96), Image.Resampling.LANCZOS).convert("RGB"))
+
+    if enhance:
+        display_img = enhance_histopathology_patch(
+            base_rgb,
+            sharpen_strength=sharpen_strength,
+            apply_clahe=True
+        )
+    else:
+        display_img = cv2.resize(base_rgb, (576, 576), interpolation=cv2.INTER_NEAREST)
+
+    if cam is not None:
+        cam_hi = cv2.resize(cam, (576, 576), interpolation=cv2.INTER_CUBIC)
+        cam_hi = np.clip(cam_hi, 0, 1)
+        heatmap = cv2.applyColorMap(np.uint8(255 * cam_hi), cv2.COLORMAP_JET)
+        heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
+        display_img = cv2.addWeighted(display_img, 0.60, heatmap, 0.40, 0)
+
+    # Draw crisp anti-aliased 32x32 center ROI box at 576x576 scale ([192:384, 192:384])
+    cv2.rectangle(display_img, (192, 192), (384, 384), roi_color, 3, lineType=cv2.LINE_AA)
     return display_img
 
 
@@ -385,6 +414,18 @@ with st.sidebar:
     )
 
     st.markdown("---")
+    st.markdown("### 🔬 Optical Magnification")
+    enhance_optics = st.toggle("HD Optical Enhancement (Lanczos4 + CLAHE)", value=True)
+    sharpen_strength = st.slider(
+        "Nuclear Edge Sharpening (USM)",
+        min_value=0.0,
+        max_value=2.5,
+        value=1.25,
+        step=0.05,
+        disabled=not enhance_optics
+    )
+
+    st.markdown("---")
     st.markdown("### 📊 Benchmark Telemetry")
     c_m1, c_m2 = st.columns(2)
     c_m1.metric("Validation AUC", f"{val_auc:.4f}")
@@ -412,7 +453,7 @@ st.markdown("""
     <div class="his-badges">
         <span class="clinical-pill pill-online">● DIAGNOSTIC CORE READY</span>
         <span class="clinical-pill">STAIN: H&E BRIGHTFIELD</span>
-        <span class="clinical-pill">FOV: 96×96 px (ROI: 32×32)</span>
+        <span class="clinical-pill">FOV: 96×96 px (6x HD OPTICS)</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
@@ -477,7 +518,7 @@ if active_img is not None and model_loaded:
     <div class="meta-strip">
         <span><b>SPECIMEN ID:</b> {specimen_id}</span>
         <span><b>SOURCE:</b> {source_mode}</span>
-        <span><b>INPUT DIMENSIONS:</b> {active_img.size[0]}×{active_img.size[1]} px</span>
+        <span><b>NATIVE FOV:</b> {active_img.size[0]}×{active_img.size[1]} px (Rendered at 576×576 HD)</span>
         <span><b>TARGET ROI:</b> 32×32 px Center [32:64, 32:64]</span>
         <span><b>OPTICAL INTENSITY:</b> {mean_intensity:.1f} / 255</span>
     </div>
@@ -487,8 +528,20 @@ if active_img is not None and model_loaded:
     cam_map = generate_gradcam(model, active_img, device)
     is_cancer = mean_prob >= threshold
 
-    roi_img = draw_roi_and_overlay(active_img, cam=None, roi_color=(16, 185, 129))
-    cam_img = draw_roi_and_overlay(active_img, cam=cam_map, roi_color=(255, 255, 255))
+    roi_img = draw_roi_and_overlay(
+        active_img,
+        cam=None,
+        roi_color=(16, 185, 129),
+        enhance=enhance_optics,
+        sharpen_strength=sharpen_strength
+    )
+    cam_img = draw_roi_and_overlay(
+        active_img,
+        cam=cam_map,
+        roi_color=(255, 255, 255),
+        enhance=enhance_optics,
+        sharpen_strength=sharpen_strength
+    )
 
     col1, col2, col3 = st.columns([1, 1, 1.15], gap="medium")
 
@@ -497,7 +550,7 @@ if active_img is not None and model_loaded:
         <div class="viewport-card">
             <div class="viewport-header">
                 <span>1. H&E BRIGHTFIELD + ROI</span>
-                <span class="viewport-tag">40x MAGNIFICATION</span>
+                <span class="viewport-tag">6x LANCZOS-4 HD</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
