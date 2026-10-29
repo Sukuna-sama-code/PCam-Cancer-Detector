@@ -9,192 +9,14 @@ from PIL import Image
 import streamlit as st
 
 # ==========================================
-# 1. PAGE CONFIG & HOSPITAL PACS UI STYLING
+# 1. PAGE CONFIG
 # ==========================================
 st.set_page_config(
-    page_title="PATHO-AI | Clinical Metastasis Workstation",
-    page_icon="🔬",
+    page_title="PATHO-AI | Clinical Histopathology Suite",
+    page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
-
-st.markdown("""
-<style>
-    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
-
-    .stApp {
-        background-color: #070d14;
-        background-image: 
-            radial-gradient(circle at 50% 0%, rgba(6, 182, 212, 0.10) 0%, transparent 60%),
-            linear-gradient(rgba(148, 163, 184, 0.03) 1px, transparent 1px),
-            linear-gradient(90deg, rgba(148, 163, 184, 0.03) 1px, transparent 1px);
-        background-size: 100% 100%, 28px 28px, 28px 28px;
-        color: #e2e8f0;
-        font-family: 'Inter', sans-serif;
-    }
-
-    section[data-testid="stSidebar"] {
-        background: linear-gradient(180deg, #0b131e 0%, #091019 100%) !important;
-        border-right: 1px solid rgba(56, 189, 248, 0.18);
-    }
-
-    .his-banner {
-        background: linear-gradient(90deg, rgba(15, 23, 42, 0.95) 0%, rgba(12, 31, 48, 0.92) 100%);
-        border: 1px solid rgba(56, 189, 248, 0.28);
-        border-left: 5px solid #06b6d4;
-        border-radius: 10px;
-        padding: 18px 24px;
-        margin-bottom: 20px;
-        display: flex;
-        justify-content: space-between;
-        align-items: center;
-        flex-wrap: wrap;
-        gap: 12px;
-        box-shadow: 0 8px 30px rgba(0, 0, 0, 0.45);
-    }
-    .his-title {
-        font-size: 1.55rem;
-        font-weight: 700;
-        color: #f8fafc;
-        letter-spacing: -0.3px;
-        margin: 0;
-    }
-    .his-subtitle {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.78rem;
-        color: #38bdf8;
-        text-transform: uppercase;
-        letter-spacing: 1px;
-        margin-bottom: 4px;
-    }
-    .his-meta {
-        font-size: 0.84rem;
-        color: #94a3b8;
-        margin-top: 4px;
-    }
-    .his-badges {
-        display: flex;
-        gap: 10px;
-        flex-wrap: wrap;
-    }
-    .clinical-pill {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.74rem;
-        padding: 6px 12px;
-        border-radius: 6px;
-        background: rgba(15, 23, 42, 0.9);
-        border: 1px solid rgba(56, 189, 248, 0.3);
-        color: #e0f2fe;
-    }
-    .pill-online {
-        border-color: rgba(16, 185, 129, 0.45);
-        color: #6ee7b7;
-        background: rgba(6, 78, 59, 0.35);
-    }
-
-    .clinical-panel {
-        background: rgba(15, 23, 42, 0.78);
-        border: 1px solid rgba(148, 163, 184, 0.18);
-        border-radius: 10px;
-        padding: 16px 20px;
-        margin-bottom: 18px;
-        backdrop-filter: blur(8px);
-    }
-    .panel-header {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.8rem;
-        font-weight: 600;
-        color: #38bdf8;
-        text-transform: uppercase;
-        letter-spacing: 1.2px;
-        margin-bottom: 10px;
-    }
-
-    .viewport-card {
-        background: rgba(13, 22, 35, 0.88);
-        border: 1px solid rgba(56, 189, 248, 0.22);
-        border-radius: 10px;
-        padding: 14px 16px;
-        margin-bottom: 10px;
-        box-shadow: 0 4px 20px rgba(0, 0, 0, 0.35);
-    }
-    .viewport-header {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.82rem;
-        font-weight: 600;
-        color: #e2e8f0;
-        border-bottom: 1px solid rgba(148, 163, 184, 0.15);
-        padding-bottom: 8px;
-        margin-bottom: 10px;
-        display: flex;
-        justify-content: space-between;
-    }
-    .viewport-tag {
-        color: #38bdf8;
-        font-size: 0.72rem;
-    }
-
-    .verdict-cancer {
-        background: linear-gradient(135deg, rgba(127, 29, 29, 0.55) 0%, rgba(69, 10, 10, 0.75) 100%);
-        border: 1px solid #ef4444;
-        border-left: 5px solid #ef4444;
-        padding: 16px;
-        border-radius: 8px;
-        color: #fecaca;
-        font-weight: 700;
-        text-align: center;
-        font-size: 1.02rem;
-        margin-bottom: 14px;
-    }
-    .verdict-normal {
-        background: linear-gradient(135deg, rgba(6, 78, 59, 0.55) 0%, rgba(2, 44, 34, 0.75) 100%);
-        border: 1px solid #10b981;
-        border-left: 5px solid #10b981;
-        padding: 16px;
-        border-radius: 8px;
-        color: #a7f3d0;
-        font-weight: 700;
-        text-align: center;
-        font-size: 1.02rem;
-        margin-bottom: 14px;
-    }
-    .prob-readout {
-        background: rgba(9, 15, 26, 0.9);
-        border: 1px solid rgba(56, 189, 248, 0.25);
-        border-radius: 8px;
-        padding: 16px;
-        text-align: center;
-        margin-top: 12px;
-    }
-    .prob-label {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.78rem;
-        color: #94a3b8;
-        text-transform: uppercase;
-    }
-    .prob-value {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 2.3rem;
-        font-weight: 700;
-        margin: 6px 0;
-    }
-    .meta-strip {
-        font-family: 'JetBrains Mono', monospace;
-        font-size: 0.76rem;
-        color: #94a3b8;
-        background: rgba(15, 23, 42, 0.75);
-        border: 1px solid rgba(148, 163, 184, 0.15);
-        border-radius: 6px;
-        padding: 8px 14px;
-        margin-bottom: 16px;
-        display: flex;
-        justify-content: space-between;
-        flex-wrap: wrap;
-        gap: 10px;
-    }
-</style>
-""", unsafe_allow_html=True)
-
 
 # ==========================================
 # 2. CENTER-AWARE RESNET-34 ARCHITECTURE
@@ -332,12 +154,6 @@ def generate_gradcam(model, img_pil, device):
 
 
 def enhance_histopathology_patch(rgb_96, sharpen_strength=1.25, apply_clahe=True):
-    """
-    6x Super-Resolution Optical Pipeline (96x96 -> 576x576):
-    1. Lanczos-4 Sinc Interpolation (eliminates blocky nearest-neighbor pixels)
-    2. LAB-Space Luminance CLAHE (enhances chromatin/nuclear boundaries without shifting H&E stain)
-    3. Fine-Radius Unsharp Masking (sharpens cellular membranes)
-    """
     target_size = (576, 576)
     upscaled = cv2.resize(rgb_96, target_size, interpolation=cv2.INTER_LANCZOS4)
 
@@ -346,7 +162,6 @@ def enhance_histopathology_patch(rgb_96, sharpen_strength=1.25, apply_clahe=True
         l_chan, a_chan, b_chan = cv2.split(lab)
         clahe = cv2.createCLAHE(clipLimit=1.6, tileGridSize=(8, 8))
         l_enhanced = clahe.apply(l_chan)
-        # Blend 55% CLAHE luminance + 45% original luminance for natural H&E staining
         l_blended = cv2.addWeighted(l_enhanced, 0.55, l_chan, 0.45, 0)
         upscaled = cv2.cvtColor(cv2.merge((l_blended, a_chan, b_chan)), cv2.COLOR_LAB2RGB)
 
@@ -360,7 +175,7 @@ def enhance_histopathology_patch(rgb_96, sharpen_strength=1.25, apply_clahe=True
     return np.clip(upscaled, 0, 255).astype(np.uint8)
 
 
-def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129), enhance=True, sharpen_strength=1.25):
+def draw_roi_and_overlay(img_pil, cam=None, roi_color=(13, 148, 136), enhance=True, sharpen_strength=1.25):
     base_rgb = np.array(img_pil.resize((96, 96), Image.Resampling.LANCZOS).convert("RGB"))
 
     if enhance:
@@ -379,15 +194,26 @@ def draw_roi_and_overlay(img_pil, cam=None, roi_color=(16, 185, 129), enhance=Tr
         heatmap = cv2.cvtColor(heatmap, cv2.COLOR_BGR2RGB)
         display_img = cv2.addWeighted(display_img, 0.60, heatmap, 0.40, 0)
 
-    # Draw crisp anti-aliased 32x32 center ROI box at 576x576 scale ([192:384, 192:384])
     cv2.rectangle(display_img, (192, 192), (384, 384), roi_color, 3, lineType=cv2.LINE_AA)
     return display_img
 
 
 # ==========================================
-# 4. SIDEBAR: SYSTEM CALIBRATION & TELEMETRY
+# 4. SIDEBAR: CONTROLS & THEME ENGINE
 # ==========================================
 with st.sidebar:
+    st.markdown("### 🎨 Clinical Environment Theme")
+    ui_theme = st.selectbox(
+        "Select Workstation Aesthetic",
+        options=[
+            "🏥 Sekond Hospital Interior (Daylight Teal)",
+            "🩺 Mediso Clinical SaaS (Soft Sky & Pearl)",
+            "🌑 PACS Radiology Dark (Bioluminescent)"
+        ],
+        index=0
+    )
+
+    st.markdown("---")
     st.markdown("### 🏥 System Calibration")
     ckpt_file = st.text_input("Model Checkpoint File", value="pcam_deployment_bundle.pt")
 
@@ -395,7 +221,7 @@ with st.sidebar:
     if os.path.exists(ckpt_file):
         try:
             model, device, default_thresh, val_auc, test_auc = load_deployment_bundle(ckpt_file)
-            st.success(f"● Engine Online ({str(device).upper()})")
+            st.success(f"● Diagnostic Core Online ({str(device).upper()})")
             model_loaded = True
         except Exception as e:
             st.error(f"Checkpoint Error: {e}")
@@ -441,24 +267,422 @@ with st.sidebar:
 
 
 # ==========================================
-# 5. MAIN HOSPITAL WORKSTATION INTERFACE
+# 5. DRIBBBLE HOSPITAL INTERIOR CSS ENGINE
+# ==========================================
+def inject_clinical_theme(theme_choice: str):
+    # SVG architectural background inspired by Sekond's "Hospital interiors" 2D Dribbble shot:
+    # Features sunlit hospital corridor perspective windows, ceiling light panels, Wainscoting dado rail, & medical cross motifs
+    sekond_hospital_svg = (
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1440' height='900' viewBox='0 0 1440 900'%3E"
+        "%3Cdefs%3E"
+        "%3ClinearGradient id='wall' x1='0' y1='0' x2='0' y2='1'%3E"
+        "%3Cstop offset='0%25' stop-color='%23e3f3f5'/%3E"
+        "%3Cstop offset='58%25' stop-color='%23edf7f8'/%3E"
+        "%3Cstop offset='58.5%25' stop-color='%23b5dce1'/%3E"
+        "%3Cstop offset='60%25' stop-color='%23d5ecef'/%3E"
+        "%3Cstop offset='100%25' stop-color='%23c4e3e7'/%3E"
+        "%3C/linearGradient%3E"
+        "%3ClinearGradient id='sunbeam' x1='0' y1='0' x2='1' y2='1'%3E"
+        "%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='0.65'/%3E"
+        "%3Cstop offset='100%25' stop-color='%23ffffff' stop-opacity='0.0'/%3E"
+        "%3C/linearGradient%3E"
+        "%3C/defs%3E"
+        "%3Crect width='1440' height='900' fill='url(%23wall)'/%3E"
+        "%3C!-- Ceiling Architectural Light Panels --%3E"
+        "%3Cpolygon points='220,0 440,0 390,42 260,42' fill='%23ffffff' opacity='0.85'/%3E"
+        "%3Cpolygon points='620,0 840,0 800,42 660,42' fill='%23ffffff' opacity='0.85'/%3E"
+        "%3Cpolygon points='1020,0 1240,0 1190,42 1060,42' fill='%23ffffff' opacity='0.85'/%3E"
+        "%3C!-- Hospital Ward Corridor Windows --%3E"
+        "%3Cg opacity='0.55'%3E"
+        "%3Crect x='90' y='110' width='260' height='310' rx='10' fill='%23ffffff' stroke='%2399cbd2' stroke-width='4'/%3E"
+        "%3Cline x1='220' y1='110' x2='220' y2='420' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3Cline x1='90' y1='265' x2='350' y2='265' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3Crect x='1090' y='110' width='260' height='310' rx='10' fill='%23ffffff' stroke='%2399cbd2' stroke-width='4'/%3E"
+        "%3Cline x1='1220' y1='110' x2='1220' y2='420' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3Cline x1='1090' y1='265' x2='1350' y2='265' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3C/g%3E"
+        "%3C!-- Sunbeams Across Ward Wall --%3E"
+        "%3Cpolygon points='90,110 350,110 640,900 220,900' fill='url(%23sunbeam)'/%3E"
+        "%3Cpolygon points='1090,110 1350,110 1440,650 1180,900' fill='url(%23sunbeam)'/%3E"
+        "%3C!-- Subtle Clinical Cross Emblem on Interior Wall --%3E"
+        "%3Cg opacity='0.18' fill='%230d9488'%3E"
+        "%3Ccircle cx='720' cy='250' r='74' fill='none' stroke='%230d9488' stroke-width='3'/%3E"
+        "%3Crect x='706' y='204' width='28' height='92' rx='5'/%3E"
+        "%3Crect x='674' y='236' width='92' height='28' rx='5'/%3E"
+        "%3C/g%3E"
+        "%3C/svg%3E"
+    )
+
+    if "Sekond" in theme_choice:
+        bg_css = f"""
+            background-color: #e6f3f5;
+            background-image: url("{sekond_hospital_svg}");
+            background-size: cover;
+            background-position: center top;
+            background-attachment: fixed;
+            color: #0f2937;
+        """
+        sidebar_bg = "linear-gradient(180deg, #f7fcfd 0%, #eaf5f7 100%)"
+        sidebar_border = "#bce0e6"
+        text_primary = "#0f2937"
+        text_secondary = "#476978"
+        accent_primary = "#0d9488"
+        accent_secondary = "#0284c7"
+        card_bg = "rgba(255, 255, 255, 0.84)"
+        card_border = "rgba(13, 148, 136, 0.24)"
+        card_shadow = "0 12px 32px -4px rgba(15, 41, 55, 0.08), 0 4px 12px rgba(13, 148, 136, 0.06)"
+        banner_bg = "linear-gradient(105deg, rgba(255, 255, 255, 0.94) 0%, rgba(236, 251, 252, 0.92) 100%)"
+        pill_bg = "#f0fdfa"
+        pill_text = "#0f766e"
+        pill_border = "#99f6e4"
+        input_bg = "#ffffff"
+    elif "Mediso" in theme_choice:
+        bg_css = """
+            background-color: #f0f6ff;
+            background-image: 
+                radial-gradient(at 12% 10%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
+                radial-gradient(at 88% 15%, rgba(14, 165, 233, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 85%, rgba(45, 212, 191, 0.14) 0px, transparent 55%),
+                linear-gradient(rgba(2, 132, 199, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(2, 132, 199, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+            background-attachment: fixed;
+            color: #0f172a;
+        """
+        sidebar_bg = "linear-gradient(180deg, #ffffff 0%, #f1f7fe 100%)"
+        sidebar_border = "#cbd5e1"
+        text_primary = "#0f172a"
+        text_secondary = "#475569"
+        accent_primary = "#0284c7"
+        accent_secondary = "#0d9488"
+        card_bg = "rgba(255, 255, 255, 0.88)"
+        card_border = "rgba(2, 132, 199, 0.20)"
+        card_shadow = "0 14px 34px -6px rgba(2, 132, 199, 0.10), 0 4px 12px rgba(15, 23, 42, 0.04)"
+        banner_bg = "linear-gradient(105deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 249, 255, 0.94) 100%)"
+        pill_bg = "#e0f2fe"
+        pill_text = "#0369a1"
+        pill_border = "#bae6fd"
+        input_bg = "#ffffff"
+    else:
+        # PACS Radiology Darkroom
+        bg_css = """
+            background-color: #060d14;
+            background-image: 
+                radial-gradient(circle at 20% 15%, rgba(13, 148, 136, 0.16) 0%, transparent 45%),
+                radial-gradient(circle at 80% 10%, rgba(2, 132, 199, 0.16) 0%, transparent 45%),
+                linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+            background-attachment: fixed;
+            color: #f1f5f9;
+        """
+        sidebar_bg = "linear-gradient(180deg, #0a141f 0%, #070e17 100%)"
+        sidebar_border = "rgba(56, 189, 248, 0.22)"
+        text_primary = "#f8fafc"
+        text_secondary = "#94a3b8"
+        accent_primary = "#14b8a6"
+        accent_secondary = "#38bdf8"
+        card_bg = "rgba(13, 24, 38, 0.86)"
+        card_border = "rgba(45, 212, 191, 0.25)"
+        card_shadow = "0 12px 32px rgba(0, 0, 0, 0.45)"
+        banner_bg = "linear-gradient(105deg, rgba(13, 25, 42, 0.95) 0%, rgba(9, 34, 46, 0.92) 100%)"
+        pill_bg = "rgba(13, 148, 136, 0.2)"
+        pill_text = "#5eead4"
+        pill_border = "rgba(45, 212, 191, 0.4)"
+        input_bg = "#0f1c2e"
+
+    st.markdown(f"""
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap');
+
+        .stApp {{
+            {bg_css}
+            font-family: 'Plus Jakarta Sans', sans-serif;
+        }}
+
+        /* Ensure clean typography contrast across light & dark themes */
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp label, .stApp .stMarkdown p {{
+            color: {text_primary} !important;
+        }}
+        .stApp .stCaption, .stApp small {{
+            color: {text_secondary} !important;
+        }}
+
+        /* Sidebar Styling */
+        section[data-testid="stSidebar"] {{
+            background: {sidebar_bg} !important;
+            border-right: 1px solid {sidebar_border} !important;
+            box-shadow: 4px 0 24px rgba(15, 41, 55, 0.05);
+        }}
+        section[data-testid="stSidebar"] [data-testid="stMetricValue"] {{
+            color: {accent_primary} !important;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {{
+            color: {text_secondary} !important;
+            font-weight: 600;
+        }}
+
+        /* Sleek Selectbox, TextInput & FileUploader Styling */
+        div[data-baseweb="select"] > div,
+        div[data-baseweb="input"] > div {{
+            background-color: {input_bg} !important;
+            border-color: {card_border} !important;
+            color: {text_primary} !important;
+            border-radius: 10px !important;
+        }}
+        div[data-baseweb="select"] span {{
+            color: {text_primary} !important;
+            font-weight: 500;
+        }}
+        [data-testid="stFileUploaderDropzone"] {{
+            background-color: {input_bg} !important;
+            border: 1.5px dashed {accent_primary} !important;
+            border-radius: 12px !important;
+        }}
+        [data-testid="stFileUploaderDropzone"] span,
+        [data-testid="stFileUploaderDropzone"] small {{
+            color: {text_secondary} !important;
+        }}
+
+        /* Hospital Interior Top Header Banner */
+        .his-banner {{
+            background: {banner_bg};
+            border: 1px solid {card_border};
+            border-left: 6px solid {accent_primary};
+            border-radius: 16px;
+            padding: 22px 28px;
+            margin-bottom: 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
+            box-shadow: {card_shadow};
+            backdrop-filter: blur(14px);
+        }}
+        .his-title {{
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: {text_primary};
+            letter-spacing: -0.4px;
+            margin: 2px 0 4px 0;
+        }}
+        .his-subtitle {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: {accent_primary};
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .his-meta {{
+            font-size: 0.88rem;
+            color: {text_secondary};
+            font-weight: 500;
+        }}
+        .his-badges {{
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+        .clinical-pill {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.74rem;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 999px;
+            background: {pill_bg};
+            border: 1px solid {pill_border};
+            color: {pill_text};
+        }}
+
+        /* Specimen Acquisition Glass Card */
+        .clinical-panel {{
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-radius: 16px;
+            padding: 18px 24px 8px 24px;
+            margin-bottom: 20px;
+            box-shadow: {card_shadow};
+            backdrop-filter: blur(14px);
+        }}
+        .panel-header {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.80rem;
+            font-weight: 700;
+            color: {accent_primary};
+            text-transform: uppercase;
+            letter-spacing: 1.2px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        /* Diagnostic Viewport Cards */
+        .viewport-card {{
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-top: 4px solid {accent_primary};
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            box-shadow: {card_shadow};
+            backdrop-filter: blur(12px);
+        }}
+        .viewport-header {{
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: {text_primary};
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }}
+        .viewport-tag {{
+            font-family: 'JetBrains Mono', monospace;
+            color: {pill_text};
+            background: {pill_bg};
+            border: 1px solid {pill_border};
+            padding: 3px 9px;
+            border-radius: 999px;
+            font-size: 0.70rem;
+            font-weight: 600;
+        }}
+
+        /* Clinical Verdict Badges */
+        .verdict-cancer {{
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1.5px solid #ef4444;
+            border-left: 6px solid #dc2626;
+            padding: 16px;
+            border-radius: 12px;
+            color: #991b1b;
+            font-weight: 800;
+            text-align: center;
+            font-size: 1.04rem;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.14);
+        }}
+        .verdict-normal {{
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 1.5px solid #10b981;
+            border-left: 6px solid #059669;
+            padding: 16px;
+            border-radius: 12px;
+            color: #065f46;
+            font-weight: 800;
+            text-align: center;
+            font-size: 1.04rem;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.14);
+        }}
+
+        /* Probability Readout Card */
+        .prob-readout {{
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+            margin-top: 12px;
+            margin-bottom: 12px;
+            box-shadow: {card_shadow};
+        }}
+        .prob-label {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: {text_secondary};
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }}
+        .prob-value {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.45rem;
+            font-weight: 800;
+            margin: 6px 0;
+        }}
+
+        /* Specimen Telemetry Strip */
+        .meta-strip {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.76rem;
+            color: {text_primary};
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-radius: 12px;
+            padding: 12px 18px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
+            box-shadow: {card_shadow};
+            backdrop-filter: blur(10px);
+        }}
+
+        /* Animated ECG Pulse Line */
+        .ecg-svg {{
+             width: 110px;
+             height: 28px;
+             vertical-align: middle;
+        }}
+        .ecg-line {{
+            fill: none;
+            stroke: {accent_primary};
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 200;
+            stroke-dashoffset: 200;
+            animation: ecgPulse 2.8s infinite linear;
+        }}
+        @keyframes ecgPulse {{
+            0% {{ stroke-dashoffset: 200; opacity: 0.4; }}
+            50% {{ stroke-dashoffset: 0; opacity: 1; }}
+            100% {{ stroke-dashoffset: -200; opacity: 0.4; }}
+        }}
+    </style>
+    """, unsafe_allow_html=True)
+
+inject_clinical_theme(ui_theme)
+
+
+# ==========================================
+# 6. MAIN HOSPITAL WORKSTATION INTERFACE
 # ==========================================
 st.markdown("""
 <div class="his-banner">
     <div>
-        <div class="his-subtitle">PATHO-AI // DIGITAL PATHOLOGY WORKSTATION v2.4</div>
-        <h1 class="his-title">🔬 PCam Histopathology Metastasis Detector</h1>
-        <div class="his-meta">Center-Aware ResNet-34 • 4x Rotational TTA • Grad-CAM Spatial Explainability</div>
+        <div class="his-subtitle">
+            <span>🏥 DEPT. OF DIGITAL PATHOLOGY & ONCOLOGY // SUITE 04-B</span>
+            <svg class="ecg-svg" viewBox="0 0 120 30">
+                <polyline class="ecg-line" points="0,15 25,15 32,6 38,25 45,3 52,27 58,12 65,15 120,15"/>
+            </svg>
+        </div>
+        <h1 class="his-title">PCam Histopathology Metastasis Workstation</h1>
+        <div class="his-meta">Center-Aware ResNet-34 • 4x Rotational TTA • 6x HD Lanczos-4 Optical Magnification</div>
     </div>
     <div class="his-badges">
-        <span class="clinical-pill pill-online">● DIAGNOSTIC CORE READY</span>
+        <span class="clinical-pill">● DIAGNOSTIC CORE READY</span>
         <span class="clinical-pill">STAIN: H&E BRIGHTFIELD</span>
-        <span class="clinical-pill">FOV: 96×96 px (6x HD OPTICS)</span>
+        <span class="clinical-pill">ROI ZONE: 32×32 px CENTER</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown('<div class="clinical-panel"><div class="panel-header">🧪 SPECIMEN ACQUISITION & REFERENCE BIOPSY LOADER</div>', unsafe_allow_html=True)
+st.markdown("""
+<div class="clinical-panel">
+    <div class="panel-header">🧪 SPECIMEN ACQUISITION & HOSPITAL BIOPSY ARCHIVE</div>
+</div>
+""", unsafe_allow_html=True)
 
 acq_col1, acq_col2 = st.columns([1.15, 1.35])
 
@@ -489,8 +713,6 @@ with acq_col2:
         type=["png", "jpg", "jpeg", "tif", "tiff"]
     )
 
-st.markdown('</div>', unsafe_allow_html=True)
-
 active_img = None
 specimen_id = None
 source_mode = None
@@ -508,7 +730,7 @@ elif sample_options.get(selected_sample_label) is not None:
 
 
 # ==========================================
-# 6. DIAGNOSTIC VIEWPORT & REPORT
+# 7. DIAGNOSTIC VIEWPORT & CLINICAL REPORT
 # ==========================================
 if active_img is not None and model_loaded:
     img_np = np.array(active_img)
@@ -531,7 +753,7 @@ if active_img is not None and model_loaded:
     roi_img = draw_roi_and_overlay(
         active_img,
         cam=None,
-        roi_color=(16, 185, 129),
+        roi_color=(13, 148, 136),
         enhance=enhance_optics,
         sharpen_strength=sharpen_strength
     )
@@ -554,7 +776,7 @@ if active_img is not None and model_loaded:
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.image(roi_img, use_container_width=True, caption="Green Square: 32×32px Diagnostic ROI Zone")
+        st.image(roi_img, use_container_width=True, caption="Teal Square: 32×32px Diagnostic ROI Zone")
 
     with col2:
         st.markdown("""
@@ -580,17 +802,17 @@ if active_img is not None and model_loaded:
         if is_cancer:
             st.markdown(
                 '<div class="verdict-cancer">🚨 METASTATIC TISSUE DETECTED<br>'
-                '<span style="font-size:0.8rem;font-weight:500;">POSITIVE FOR LYMPH NODE METASTASIS</span></div>',
+                '<span style="font-size:0.80rem;font-weight:600;">POSITIVE FOR LYMPH NODE METASTASIS</span></div>',
                 unsafe_allow_html=True
             )
-            val_color = "#f87171"
+            val_color = "#dc2626"
         else:
             st.markdown(
                 '<div class="verdict-normal">✅ BENIGN / NORMAL TISSUE<br>'
-                '<span style="font-size:0.8rem;font-weight:500;">NO METASTATIC FOCI IDENTIFIED</span></div>',
+                '<span style="font-size:0.80rem;font-weight:600;">NO METASTATIC FOCI IDENTIFIED</span></div>',
                 unsafe_allow_html=True
             )
-            val_color = "#34d399"
+            val_color = "#059669"
 
         st.progress(min(max(mean_prob, 0.0), 1.0))
 
