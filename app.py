@@ -1,3 +1,4 @@
+#mid/average design
 import os
 import cv2
 import torch
@@ -12,8 +13,8 @@ import streamlit as st
 # 1. PAGE CONFIG
 # ==========================================
 st.set_page_config(
-    page_title="PATHO-AI | Clinical Metastasis Workstation",
-    page_icon="🔬",
+    page_title="PATHO-AI | Clinical Histopathology Suite",
+    page_icon="🏥",
     layout="wide",
     initial_sidebar_state="expanded"
 )
@@ -199,17 +200,16 @@ def draw_roi_and_overlay(img_pil, cam=None, roi_color=(13, 148, 136), enhance=Tr
 
 
 # ==========================================
-# 4. SIDEBAR: CONTROLS & WEB-GRADIENTS PALETTE
+# 4. SIDEBAR: CONTROLS & THEME ENGINE
 # ==========================================
 with st.sidebar:
-    st.markdown("### 🎨 WebGradients Aesthetics")
-    gradient_theme = st.selectbox(
-        "Select Color Palette",
+    st.markdown("### 🎨 Clinical Environment Theme")
+    ui_theme = st.selectbox(
+        "Select Workstation Aesthetic",
         options=[
-            "✨ Crystal Clear (WebGradients A1C4FD → C2E9FB)",
-            "🌊 Deep Ocean Breeze (WebGradients 2E3192 → 1BFFFF)",
-            "🍑 Warm Sunset Clinical (WebGradients FAD961 → F76B1C)",
-            "🌑 Pure PACS Darkroom (High Contrast Neon)"
+            "🏥 Sekond Hospital Interior (Daylight Teal)",
+            "🩺 Mediso Clinical SaaS (Soft Sky & Pearl)",
+            "🌑 PACS Radiology Dark (Bioluminescent)"
         ],
         index=0
     )
@@ -222,7 +222,7 @@ with st.sidebar:
     if os.path.exists(ckpt_file):
         try:
             model, device, default_thresh, val_auc, test_auc = load_deployment_bundle(ckpt_file)
-            st.success(f"● Core Online ({str(device).upper()})")
+            st.success(f"● Diagnostic Core Online ({str(device).upper()})")
             model_loaded = True
         except Exception as e:
             st.error(f"Checkpoint Error: {e}")
@@ -232,7 +232,7 @@ with st.sidebar:
         default_thresh, val_auc, test_auc = 0.126, 0.9667, 0.9534
 
     threshold = st.slider(
-        "Decision Threshold (Youden's J)",
+        "Decision Threshold (Calibrated via Youden's J)",
         min_value=0.01,
         max_value=0.99,
         value=float(round(default_thresh, 3)),
@@ -242,9 +242,9 @@ with st.sidebar:
 
     st.markdown("---")
     st.markdown("### 🔬 Optical Magnification")
-    enhance_optics = st.toggle("HD Optical Enhancement", value=True)
+    enhance_optics = st.toggle("HD Optical Enhancement (Lanczos4 + CLAHE)", value=True)
     sharpen_strength = st.slider(
-        "Nuclear Sharpening (USM)",
+        "Nuclear Edge Sharpening (USM)",
         min_value=0.0,
         max_value=2.5,
         value=1.25,
@@ -255,59 +255,142 @@ with st.sidebar:
     st.markdown("---")
     st.markdown("### 📊 Benchmark Telemetry")
     c_m1, c_m2 = st.columns(2)
-    c_m1.metric("Val AUC", f"{val_auc:.4f}")
-    c_m2.metric("Test AUC", f"{test_auc:.4f}")
+    c_m1.metric("Validation AUC", f"{val_auc:.4f}")
+    c_m2.metric("Test AUC (4x TTA)", f"{test_auc:.4f}")
+
+    st.markdown("---")
+    st.markdown("### 🧬 Clinical Protocol")
+    st.caption(
+        "**PCam Center Rule:** Metastasis is scored positive if ≥1 tumor cell "
+        "occupies the central **32×32 px** zone (marked by the target ROI box). "
+        "Outer tissue provides morphological context."
+    )
 
 
 # ==========================================
-# 5. HIGH-CONTRAST WEB-GRADIENTS CSS ENGINE
+# 5. DRIBBBLE HOSPITAL INTERIOR CSS ENGINE
 # ==========================================
-def inject_webgradient_theme(theme_choice: str):
-    if "Crystal Clear" in theme_choice:
-        bg_css = "background-image: linear-gradient(135deg, #a1c4fd 0%, #c2e9fb 100%); background-attachment: fixed;"
+def inject_clinical_theme(theme_choice: str):
+    # SVG architectural background inspired by Sekond's "Hospital interiors" 2D Dribbble shot:
+    # Features sunlit hospital corridor perspective windows, ceiling light panels, Wainscoting dado rail, & medical cross motifs
+    sekond_hospital_svg = (
+        "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1440' height='900' viewBox='0 0 1440 900'%3E"
+        "%3Cdefs%3E"
+        "%3ClinearGradient id='wall' x1='0' y1='0' x2='0' y2='1'%3E"
+        "%3Cstop offset='0%25' stop-color='%23e3f3f5'/%3E"
+        "%3Cstop offset='58%25' stop-color='%23edf7f8'/%3E"
+        "%3Cstop offset='58.5%25' stop-color='%23b5dce1'/%3E"
+        "%3Cstop offset='60%25' stop-color='%23d5ecef'/%3E"
+        "%3Cstop offset='100%25' stop-color='%23c4e3e7'/%3E"
+        "%3C/linearGradient%3E"
+        "%3ClinearGradient id='sunbeam' x1='0' y1='0' x2='1' y2='1'%3E"
+        "%3Cstop offset='0%25' stop-color='%23ffffff' stop-opacity='0.65'/%3E"
+        "%3Cstop offset='100%25' stop-color='%23ffffff' stop-opacity='0.0'/%3E"
+        "%3C/linearGradient%3E"
+        "%3C/defs%3E"
+        "%3Crect width='1440' height='900' fill='url(%23wall)'/%3E"
+        "%3C!-- Ceiling Architectural Light Panels --%3E"
+        "%3Cpolygon points='220,0 440,0 390,42 260,42' fill='%23ffffff' opacity='0.85'/%3E"
+        "%3Cpolygon points='620,0 840,0 800,42 660,42' fill='%23ffffff' opacity='0.85'/%3E"
+        "%3Cpolygon points='1020,0 1240,0 1190,42 1060,42' fill='%23ffffff' opacity='0.85'/%3E"
+        "%3C!-- Hospital Ward Corridor Windows --%3E"
+        "%3Cg opacity='0.55'%3E"
+        "%3Crect x='90' y='110' width='260' height='310' rx='10' fill='%23ffffff' stroke='%2399cbd2' stroke-width='4'/%3E"
+        "%3Cline x1='220' y1='110' x2='220' y2='420' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3Cline x1='90' y1='265' x2='350' y2='265' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3Crect x='1090' y='110' width='260' height='310' rx='10' fill='%23ffffff' stroke='%2399cbd2' stroke-width='4'/%3E"
+        "%3Cline x1='1220' y1='110' x2='1220' y2='420' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3Cline x1='1090' y1='265' x2='1350' y2='265' stroke='%23b2d8de' stroke-width='3'/%3E"
+        "%3C/g%3E"
+        "%3C!-- Sunbeams Across Ward Wall --%3E"
+        "%3Cpolygon points='90,110 350,110 640,900 220,900' fill='url(%23sunbeam)'/%3E"
+        "%3Cpolygon points='1090,110 1350,110 1440,650 1180,900' fill='url(%23sunbeam)'/%3E"
+        "%3C!-- Subtle Clinical Cross Emblem on Interior Wall --%3E"
+        "%3Cg opacity='0.18' fill='%230d9488'%3E"
+        "%3Ccircle cx='720' cy='250' r='74' fill='none' stroke='%230d9488' stroke-width='3'/%3E"
+        "%3Crect x='706' y='204' width='28' height='92' rx='5'/%3E"
+        "%3Crect x='674' y='236' width='92' height='28' rx='5'/%3E"
+        "%3C/g%3E"
+        "%3C/svg%3E"
+    )
+
+    if "Sekond" in theme_choice:
+        bg_css = f"""
+            background-color: #e6f3f5;
+            background-image: url("{sekond_hospital_svg}");
+            background-size: cover;
+            background-position: center top;
+            background-attachment: fixed;
+            color: #0f2937;
+        """
+        sidebar_bg = "linear-gradient(180deg, #f7fcfd 0%, #eaf5f7 100%)"
+        sidebar_border = "#bce0e6"
+        text_primary = "#0f2937"
+        text_secondary = "#476978"
+        accent_primary = "#0d9488"
+        accent_secondary = "#0284c7"
+        card_bg = "rgba(255, 255, 255, 0.84)"
+        card_border = "rgba(13, 148, 136, 0.24)"
+        card_shadow = "0 12px 32px -4px rgba(15, 41, 55, 0.08), 0 4px 12px rgba(13, 148, 136, 0.06)"
+        banner_bg = "linear-gradient(105deg, rgba(255, 255, 255, 0.94) 0%, rgba(236, 251, 252, 0.92) 100%)"
+        pill_bg = "#f0fdfa"
+        pill_text = "#0f766e"
+        pill_border = "#99f6e4"
+        input_bg = "#ffffff"
+    elif "Mediso" in theme_choice:
+        bg_css = """
+            background-color: #f0f6ff;
+            background-image: 
+                radial-gradient(at 12% 10%, rgba(56, 189, 248, 0.18) 0px, transparent 50%),
+                radial-gradient(at 88% 15%, rgba(14, 165, 233, 0.15) 0px, transparent 50%),
+                radial-gradient(at 50% 85%, rgba(45, 212, 191, 0.14) 0px, transparent 55%),
+                linear-gradient(rgba(2, 132, 199, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(2, 132, 199, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 100% 100%, 32px 32px, 32px 32px;
+            background-attachment: fixed;
+            color: #0f172a;
+        """
+        sidebar_bg = "linear-gradient(180deg, #ffffff 0%, #f1f7fe 100%)"
+        sidebar_border = "#cbd5e1"
         text_primary = "#0f172a"
-        text_secondary = "#334155"
+        text_secondary = "#475569"
+        accent_primary = "#0284c7"
+        accent_secondary = "#0d9488"
         card_bg = "rgba(255, 255, 255, 0.88)"
-        card_border = "rgba(255, 255, 255, 0.9)"
-        card_shadow = "0 16px 36px rgba(31, 38, 135, 0.12)"
-        accent_color = "#0284c7"
-        sidebar_bg = "linear-gradient(180deg, #f8fafc 0%, #edf2f7 100%)"
+        card_border = "rgba(2, 132, 199, 0.20)"
+        card_shadow = "0 14px 34px -6px rgba(2, 132, 199, 0.10), 0 4px 12px rgba(15, 23, 42, 0.04)"
+        banner_bg = "linear-gradient(105deg, rgba(255, 255, 255, 0.96) 0%, rgba(240, 249, 255, 0.94) 100%)"
         pill_bg = "#e0f2fe"
         pill_text = "#0369a1"
-    elif "Deep Ocean Breeze" in theme_choice:
-        bg_css = "background-image: linear-gradient(135deg, #2e3192 0%, #1bffff 100%); background-attachment: fixed;"
-        text_primary = "#f8fafc"
-        text_secondary = "#cbd5e1"
-        card_bg = "rgba(15, 23, 42, 0.82)"
-        card_border = "rgba(56, 189, 248, 0.25)"
-        card_shadow = "0 16px 36px rgba(0, 0, 0, 0.35)"
-        accent_color = "#38bdf8"
-        sidebar_bg = "linear-gradient(180deg, #0b1329 0%, #070b19 100%)"
-        pill_bg = "rgba(56, 189, 248, 0.2)"
-        pill_text = "#7dd3fc"
-    elif "Warm Sunset Clinical" in theme_choice:
-        bg_css = "background-image: linear-gradient(135deg, #fad961 0%, #f76b1c 100%); background-attachment: fixed;"
-        text_primary = "#1c1917"
-        text_secondary = "#44403c"
-        card_bg = "rgba(255, 255, 255, 0.89)"
-        card_border = "rgba(255, 255, 255, 0.9)"
-        card_shadow = "0 16px 36px rgba(120, 53, 15, 0.15)"
-        accent_color = "#c2410c"
-        sidebar_bg = "linear-gradient(180deg, #fffbeb 0%, #fef3c7 100%)"
-        pill_bg = "#ffedd5"
-        pill_text = "#c2410c"
+        pill_border = "#bae6fd"
+        input_bg = "#ffffff"
     else:
-        # PACS Darkroom
-        bg_css = "background-color: #050b14; background-image: radial-gradient(circle at 50% 0%, rgba(14, 165, 233, 0.12) 0%, transparent 60%); background-attachment: fixed;"
+        # PACS Radiology Darkroom
+        bg_css = """
+            background-color: #060d14;
+            background-image: 
+                radial-gradient(circle at 20% 15%, rgba(13, 148, 136, 0.16) 0%, transparent 45%),
+                radial-gradient(circle at 80% 10%, rgba(2, 132, 199, 0.16) 0%, transparent 45%),
+                linear-gradient(rgba(56, 189, 248, 0.04) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(56, 189, 248, 0.04) 1px, transparent 1px);
+            background-size: 100% 100%, 100% 100%, 28px 28px, 28px 28px;
+            background-attachment: fixed;
+            color: #f1f5f9;
+        """
+        sidebar_bg = "linear-gradient(180deg, #0a141f 0%, #070e17 100%)"
+        sidebar_border = "rgba(56, 189, 248, 0.22)"
         text_primary = "#f8fafc"
         text_secondary = "#94a3b8"
-        card_bg = "rgba(11, 19, 32, 0.9)"
-        card_border = "rgba(56, 189, 248, 0.2)"
-        card_shadow = "0 16px 36px rgba(0, 0, 0, 0.5)"
-        accent_color = "#14b8a6"
-        sidebar_bg = "linear-gradient(180deg, #09101d 0%, #060a12 100%)"
-        pill_bg = "rgba(20, 184, 166, 0.2)"
+        accent_primary = "#14b8a6"
+        accent_secondary = "#38bdf8"
+        card_bg = "rgba(13, 24, 38, 0.86)"
+        card_border = "rgba(45, 212, 191, 0.25)"
+        card_shadow = "0 12px 32px rgba(0, 0, 0, 0.45)"
+        banner_bg = "linear-gradient(105deg, rgba(13, 25, 42, 0.95) 0%, rgba(9, 34, 46, 0.92) 100%)"
+        pill_bg = "rgba(13, 148, 136, 0.2)"
         pill_text = "#5eead4"
+        pill_border = "rgba(45, 212, 191, 0.4)"
+        input_bg = "#0f1c2e"
 
     st.markdown(f"""
     <style>
@@ -318,181 +401,294 @@ def inject_webgradient_theme(theme_choice: str):
             font-family: 'Plus Jakarta Sans', sans-serif;
         }}
 
-        /* Strict High-Contrast Text Visibility */
-        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp label, .stApp span, .stApp div {{
-            color: {text_primary};
+        /* Ensure clean typography contrast across light & dark themes */
+        .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp label, .stApp .stMarkdown p {{
+            color: {text_primary} !important;
         }}
-        .stApp p, .stApp .stCaption, .stApp small {{
-            color: {text_secondary};
+        .stApp .stCaption, .stApp small {{
+            color: {text_secondary} !important;
         }}
 
         /* Sidebar Styling */
         section[data-testid="stSidebar"] {{
             background: {sidebar_bg} !important;
-            border-right: 1px solid {card_border} !important;
+            border-right: 1px solid {sidebar_border} !important;
+            box-shadow: 4px 0 24px rgba(15, 41, 55, 0.05);
         }}
-        section[data-testid="stSidebar"] label, 
-        section[data-testid="stSidebar"] .stMarkdown p {{
-            color: {text_primary} !important;
+        section[data-testid="stSidebar"] [data-testid="stMetricValue"] {{
+            color: {accent_primary} !important;
+            font-family: 'JetBrains Mono', monospace;
+            font-weight: 700;
+        }}
+        section[data-testid="stSidebar"] [data-testid="stMetricLabel"] {{
+            color: {text_secondary} !important;
             font-weight: 600;
         }}
 
-        /* Crystal Clear Buttons & Inputs */
+        /* Sleek Selectbox, TextInput & FileUploader Styling */
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div {{
-            background-color: {card_bg} !important;
-            border: 1px solid {accent_color} !important;
-            border-radius: 10px !important;
+            background-color: {input_bg} !important;
+            border-color: {card_border} !important;
             color: {text_primary} !important;
+            border-radius: 10px !important;
         }}
         div[data-baseweb="select"] span {{
             color: {text_primary} !important;
-            font-weight: 600;
+            font-weight: 500;
         }}
         [data-testid="stFileUploaderDropzone"] {{
-            background-color: {card_bg} !important;
-            border: 2px dashed {accent_color} !important;
+            background-color: {input_bg} !important;
+            border: 1.5px dashed {accent_primary} !important;
             border-radius: 12px !important;
         }}
         [data-testid="stFileUploaderDropzone"] span,
         [data-testid="stFileUploaderDropzone"] small {{
-            color: {text_primary} !important;
-            font-weight: 600;
+            color: {text_secondary} !important;
         }}
 
-        /* Main Glassmorphic Cards */
-        .clinical-banner {{
-            background: {card_bg};
+        /* Hospital Interior Top Header Banner */
+        .his-banner {{
+            background: {banner_bg};
             border: 1px solid {card_border};
-            border-left: 6px solid {accent_color};
+            border-left: 6px solid {accent_primary};
             border-radius: 16px;
-            padding: 24px 30px;
-            margin-bottom: 24px;
-            box-shadow: {card_shadow};
-            backdrop-filter: blur(16px);
-        }}
-        .banner-title {{
-            font-size: 1.7rem;
-            font-weight: 800;
-            color: {text_primary} !important;
-            letter-spacing: -0.5px;
-            margin: 4px 0;
-        }}
-        .banner-subtitle {{
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 0.78rem;
-            font-weight: 700;
-            color: {accent_color};
-            text-transform: uppercase;
-            letter-spacing: 1.5px;
-        }}
-
-        .glass-card {{
-            background: {card_bg};
-            border: 1px solid {card_border};
-            border-radius: 16px;
-            padding: 20px;
-            margin-bottom: 18px;
+            padding: 22px 28px;
+            margin-bottom: 22px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 16px;
             box-shadow: {card_shadow};
             backdrop-filter: blur(14px);
         }}
-        .card-header {{
+        .his-title {{
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: {text_primary};
+            letter-spacing: -0.4px;
+            margin: 2px 0 4px 0;
+        }}
+        .his-subtitle {{
             font-family: 'JetBrains Mono', monospace;
-            font-size: 0.82rem;
+            font-size: 0.76rem;
             font-weight: 700;
-            color: {accent_color};
+            color: {accent_primary};
+            text-transform: uppercase;
+            letter-spacing: 1.4px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+        .his-meta {{
+            font-size: 0.88rem;
+            color: {text_secondary};
+            font-weight: 500;
+        }}
+        .his-badges {{
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            align-items: center;
+        }}
+        .clinical-pill {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.74rem;
+            font-weight: 600;
+            padding: 7px 14px;
+            border-radius: 999px;
+            background: {pill_bg};
+            border: 1px solid {pill_border};
+            color: {pill_text};
+        }}
+
+        /* Specimen Acquisition Glass Card */
+        .clinical-panel {{
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-radius: 16px;
+            padding: 18px 24px 8px 24px;
+            margin-bottom: 20px;
+            box-shadow: {card_shadow};
+            backdrop-filter: blur(14px);
+        }}
+        .panel-header {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.80rem;
+            font-weight: 700;
+            color: {accent_primary};
             text-transform: uppercase;
             letter-spacing: 1.2px;
-            margin-bottom: 14px;
+            margin-bottom: 12px;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        /* Diagnostic Viewport Cards */
+        .viewport-card {{
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-top: 4px solid {accent_primary};
+            border-radius: 14px;
+            padding: 14px 18px;
+            margin-bottom: 12px;
+            box-shadow: {card_shadow};
+            backdrop-filter: blur(12px);
+        }}
+        .viewport-header {{
+            font-family: 'Plus Jakarta Sans', sans-serif;
+            font-size: 0.88rem;
+            font-weight: 700;
+            color: {text_primary};
             display: flex;
             justify-content: space-between;
             align-items: center;
         }}
-        .card-tag {{
-            background: {pill_bg};
+        .viewport-tag {{
+            font-family: 'JetBrains Mono', monospace;
             color: {pill_text};
-            border: 1px solid {accent_color};
-            padding: 3px 10px;
+            background: {pill_bg};
+            border: 1px solid {pill_border};
+            padding: 3px 9px;
             border-radius: 999px;
-            font-size: 0.72rem;
-            font-weight: 700;
+            font-size: 0.70rem;
+            font-weight: 600;
         }}
 
-        /* Verdict Banners */
+        /* Clinical Verdict Badges */
         .verdict-cancer {{
-            background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
-            border: 2px solid #ef4444;
-            border-left: 8px solid #dc2626;
-            padding: 18px;
+            background: linear-gradient(135deg, #fef2f2 0%, #fee2e2 100%);
+            border: 1.5px solid #ef4444;
+            border-left: 6px solid #dc2626;
+            padding: 16px;
             border-radius: 12px;
-            color: #7f1d1d !important;
+            color: #991b1b;
             font-weight: 800;
             text-align: center;
-            font-size: 1.08rem;
-            margin-bottom: 16px;
-            box-shadow: 0 10px 25px rgba(239, 68, 68, 0.2);
+            font-size: 1.04rem;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 20px rgba(239, 68, 68, 0.14);
         }}
         .verdict-normal {{
-            background: linear-gradient(135deg, #d1fae5 0%, #a7f3d0 100%);
-            border: 2px solid #10b981;
-            border-left: 8px solid #059669;
-            padding: 18px;
+            background: linear-gradient(135deg, #ecfdf5 0%, #d1fae5 100%);
+            border: 1.5px solid #10b981;
+            border-left: 6px solid #059669;
+            padding: 16px;
             border-radius: 12px;
-            color: #064e3b !important;
+            color: #065f46;
             font-weight: 800;
             text-align: center;
-            font-size: 1.08rem;
-            margin-bottom: 16px;
-            box-shadow: 0 10px 25px rgba(16, 185, 129, 0.2);
+            font-size: 1.04rem;
+            margin-bottom: 14px;
+            box-shadow: 0 8px 20px rgba(16, 185, 129, 0.14);
         }}
 
-        .metric-box {{
+        /* Probability Readout Card */
+        .prob-readout {{
+            background: {card_bg};
+            border: 1px solid {card_border};
+            border-radius: 14px;
+            padding: 18px;
+            text-align: center;
+            margin-top: 12px;
+            margin-bottom: 12px;
+            box-shadow: {card_shadow};
+        }}
+        .prob-label {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.76rem;
+            font-weight: 600;
+            color: {text_secondary};
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+        }}
+        .prob-value {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 2.45rem;
+            font-weight: 800;
+            margin: 6px 0;
+        }}
+
+        /* Specimen Telemetry Strip */
+        .meta-strip {{
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.76rem;
+            color: {text_primary};
             background: {card_bg};
             border: 1px solid {card_border};
             border-radius: 12px;
-            padding: 16px;
-            text-align: center;
-            margin-top: 10px;
+            padding: 12px 18px;
+            margin-bottom: 18px;
+            display: flex;
+            justify-content: space-between;
+            flex-wrap: wrap;
+            gap: 12px;
             box-shadow: {card_shadow};
+            backdrop-filter: blur(10px);
         }}
-        .metric-value {{
-            font-family: 'JetBrains Mono', monospace;
-            font-size: 2.5rem;
-            font-weight: 800;
-            margin: 4px 0;
+
+        /* Animated ECG Pulse Line */
+        .ecg-svg {{
+             width: 110px;
+             height: 28px;
+             vertical-align: middle;
+        }}
+        .ecg-line {{
+            fill: none;
+            stroke: {accent_primary};
+            stroke-width: 2.2;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+            stroke-dasharray: 200;
+            stroke-dashoffset: 200;
+            animation: ecgPulse 2.8s infinite linear;
+        }}
+        @keyframes ecgPulse {{
+            0% {{ stroke-dashoffset: 200; opacity: 0.4; }}
+            50% {{ stroke-dashoffset: 0; opacity: 1; }}
+            100% {{ stroke-dashoffset: -200; opacity: 0.4; }}
         }}
     </style>
     """, unsafe_allow_html=True)
 
-inject_webgradient_theme(gradient_theme)
+inject_clinical_theme(ui_theme)
 
 
 # ==========================================
-# 6. MAIN WORKSTATION UI LAYOUT
+# 6. MAIN HOSPITAL WORKSTATION INTERFACE
 # ==========================================
 st.markdown("""
-<div class="clinical-banner">
-    <div class="banner-subtitle">🏥 DEPT. OF DIGITAL PATHOLOGY & ONCOLOGY // WORKSTATION SUITE</div>
-    <div class="banner-title">PCam Histopathology Metastasis Workstation</div>
-    <div style="font-size: 0.9rem; margin-top: 4px; opacity: 0.85;">
-        Center-Aware ResNet-34 • 4x Rotational TTA • 6x HD Lanczos-4 Optical Magnification
+<div class="his-banner">
+    <div>
+        <div class="his-subtitle">
+            <span>🏥 DEPT. OF DIGITAL PATHOLOGY & ONCOLOGY // SUITE 04-B</span>
+            <svg class="ecg-svg" viewBox="0 0 120 30">
+                <polyline class="ecg-line" points="0,15 25,15 32,6 38,25 45,3 52,27 58,12 65,15 120,15"/>
+            </svg>
+        </div>
+        <h1 class="his-title">PCam Histopathology Metastasis Workstation</h1>
+        <div class="his-meta">Center-Aware ResNet-34 • 4x Rotational TTA • 6x HD Lanczos-4 Optical Magnification</div>
+    </div>
+    <div class="his-badges">
+        <span class="clinical-pill">● DIAGNOSTIC CORE READY</span>
+        <span class="clinical-pill">STAIN: H&E BRIGHTFIELD</span>
+        <span class="clinical-pill">ROI ZONE: 32×32 px CENTER</span>
     </div>
 </div>
 """, unsafe_allow_html=True)
 
-# Specimen Selection Panel
 st.markdown("""
-<div class="glass-card">
-    <div class="card-header">
-        <span>🧪 Specimen Acquisition & Reference Bank</span>
-        <span class="card-tag">INPUT TILE: 96×96 PX</span>
-    </div>
+<div class="clinical-panel">
+    <div class="panel-header">🧪 SPECIMEN ACQUISITION & HOSPITAL BIOPSY ARCHIVE</div>
+</div>
 """, unsafe_allow_html=True)
 
-acq_col1, acq_col2 = st.columns(2, gap="medium")
+acq_col1, acq_col2 = st.columns([1.15, 1.35])
 
 sample_dir = "sample_biopsy_patches"
-sample_options = {"-- Select Custom Uploaded Slide (Right) --": None}
+sample_options = {"-- Use Custom Uploaded Slide (Right) --": None}
 
 if os.path.isdir(sample_dir):
     for fname in sorted(os.listdir(sample_dir)):
@@ -500,25 +696,23 @@ if os.path.isdir(sample_dir):
             if "cancer" in fname.lower():
                 label = f"🔴 Metastatic Reference — {fname}"
             elif "normal" in fname.lower():
-                label = f"🟢 Benign Reference — {fname}"
+                label = f"🟢 Benign / Normal Reference — {fname}"
             else:
                 label = f"🧫 Biopsy Specimen — {fname}"
             sample_options[label] = os.path.join(sample_dir, fname)
 
 with acq_col1:
     selected_sample_label = st.selectbox(
-        "Quick-Load Hospital Reference Biopsy",
+        "Quick-Load Hospital Reference Biopsy (No Upload Needed)",
         options=list(sample_options.keys()),
         index=1 if len(sample_options) > 1 else 0
     )
 
 with acq_col2:
     uploaded_file = st.file_uploader(
-        "Or Upload External Lymph Node Patch (PNG/JPG/TIF)",
+        "Or Upload External Lymph Node Patch (PNG / JPG / TIF)",
         type=["png", "jpg", "jpeg", "tif", "tiff"]
     )
-
-st.markdown('</div>', unsafe_allow_html=True)
 
 active_img = None
 specimen_id = None
@@ -537,19 +731,19 @@ elif sample_options.get(selected_sample_label) is not None:
 
 
 # ==========================================
-# 7. VIEWPORTS & DIAGNOSTIC REPORT
+# 7. DIAGNOSTIC VIEWPORT & CLINICAL REPORT
 # ==========================================
 if active_img is not None and model_loaded:
     img_np = np.array(active_img)
     mean_intensity = np.mean(img_np)
 
     st.markdown(f"""
-    <div class="glass-card" style="padding: 12px 20px; font-family: 'JetBrains Mono', monospace; font-size: 0.78rem; display: flex; justify-content: space-between; flex-wrap: wrap; gap: 10px;">
+    <div class="meta-strip">
         <span><b>SPECIMEN ID:</b> {specimen_id}</span>
         <span><b>SOURCE:</b> {source_mode}</span>
-        <span><b>RENDER:</b> 576×576 HD Lanczos-4</span>
-        <span><b>ROI ZONE:</b> 32×32 px Center</span>
-        <span><b>INTENSITY:</b> {mean_intensity:.1f}/255</span>
+        <span><b>NATIVE FOV:</b> {active_img.size[0]}×{active_img.size[1]} px (Rendered at 576×576 HD)</span>
+        <span><b>TARGET ROI:</b> 32×32 px Center [32:64, 32:64]</span>
+        <span><b>OPTICAL INTENSITY:</b> {mean_intensity:.1f} / 255</span>
     </div>
     """, unsafe_allow_html=True)
 
@@ -557,39 +751,51 @@ if active_img is not None and model_loaded:
     cam_map = generate_gradcam(model, active_img, device)
     is_cancer = mean_prob >= threshold
 
-    roi_img = draw_roi_and_overlay(active_img, cam=None, roi_color=(13, 148, 136), enhance=enhance_optics, sharpen_strength=sharpen_strength)
-    cam_img = draw_roi_and_overlay(active_img, cam=cam_map, roi_color=(255, 255, 255), enhance=enhance_optics, sharpen_strength=sharpen_strength)
+    roi_img = draw_roi_and_overlay(
+        active_img,
+        cam=None,
+        roi_color=(13, 148, 136),
+        enhance=enhance_optics,
+        sharpen_strength=sharpen_strength
+    )
+    cam_img = draw_roi_and_overlay(
+        active_img,
+        cam=cam_map,
+        roi_color=(255, 255, 255),
+        enhance=enhance_optics,
+        sharpen_strength=sharpen_strength
+    )
 
-    v_col1, v_col2, v_col3 = st.columns([1, 1, 1.15], gap="medium")
+    col1, col2, col3 = st.columns([1, 1, 1.15], gap="medium")
 
-    with v_col1:
+    with col1:
         st.markdown("""
-        <div class="glass-card">
-            <div class="card-header">
-                <span>1. H&E Brightfield</span>
-                <span class="card-tag">HD ZOOM</span>
+        <div class="viewport-card">
+            <div class="viewport-header">
+                <span>1. H&E BRIGHTFIELD + ROI</span>
+                <span class="viewport-tag">6x LANCZOS-4 HD</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.image(roi_img, use_container_width=True, caption="Target ROI: 32x32px Center Box")
+        st.image(roi_img, use_container_width=True, caption="Teal Square: 32×32px Diagnostic ROI Zone")
 
-    with v_col2:
+    with col2:
         st.markdown("""
-        <div class="glass-card">
-            <div class="card-header">
-                <span>2. Grad-CAM Map</span>
-                <span class="card-tag">ATTENTION</span>
+        <div class="viewport-card">
+            <div class="viewport-header">
+                <span>2. GRAD-CAM ACTIVATION</span>
+                <span class="viewport-tag">LAYER-4 ATTENTION</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
-        st.image(cam_img, use_container_width=True, caption="Layer-4 Attention Hotspots")
+        st.image(cam_img, use_container_width=True, caption="Red/Yellow Hotspots: High Feature Attribution")
 
-    with v_col3:
+    with col3:
         st.markdown("""
-        <div class="glass-card">
-            <div class="card-header">
-                <span>3. Pathology Verdict</span>
-                <span class="card-tag">4x TTA</span>
+        <div class="viewport-card">
+            <div class="viewport-header">
+                <span>3. AUTOMATED PATHOLOGY VERDICT</span>
+                <span class="viewport-tag">4x TTA CONSENSUS</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
@@ -597,14 +803,14 @@ if active_img is not None and model_loaded:
         if is_cancer:
             st.markdown(
                 '<div class="verdict-cancer">🚨 METASTATIC TISSUE DETECTED<br>'
-                '<span style="font-size:0.78rem; font-weight:700;">POSITIVE FOR LYMPH NODE METASTASIS</span></div>',
+                '<span style="font-size:0.80rem;font-weight:600;">POSITIVE FOR LYMPH NODE METASTASIS</span></div>',
                 unsafe_allow_html=True
             )
             val_color = "#dc2626"
         else:
             st.markdown(
                 '<div class="verdict-normal">✅ BENIGN / NORMAL TISSUE<br>'
-                '<span style="font-size:0.78rem; font-weight:700;">NO METASTATIC FOCI IDENTIFIED</span></div>',
+                '<span style="font-size:0.80rem;font-weight:600;">NO METASTATIC FOCI IDENTIFIED</span></div>',
                 unsafe_allow_html=True
             )
             val_color = "#059669"
@@ -612,16 +818,16 @@ if active_img is not None and model_loaded:
         st.progress(min(max(mean_prob, 0.0), 1.0))
 
         st.markdown(f"""
-        <div class="metric-box">
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem; font-weight: 700; text-transform: uppercase;">4x TTA Malignancy Probability</div>
-            <div class="metric-value" style="color: {val_color};">{mean_prob * 100:.2f}%</div>
-            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.72rem; opacity: 0.85;">
-                Calibrated Threshold: <b>{threshold * 100:.1f}% ({threshold:.3f})</b>
+        <div class="prob-readout">
+            <div class="prob-label">4x TTA Malignancy Probability</div>
+            <div class="prob-value" style="color: {val_color};">{mean_prob * 100:.2f}%</div>
+            <div class="prob-label" style="font-size: 0.72rem;">
+                Calibrated Cutoff Threshold: <b>{threshold * 100:.1f}% ({threshold:.3f})</b>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        with st.expander("📐 View 4x Rotational TTA Breakdown", expanded=True):
+        with st.expander("📐 View 4x Rotational TTA Telemetry Breakdown", expanded=True):
             r_cols = st.columns(4)
             for idx, (ang, p_val) in enumerate(rot_probs.items()):
                 r_cols[idx].metric(label=f"Rot {ang}", value=f"{p_val * 100:.1f}%")
