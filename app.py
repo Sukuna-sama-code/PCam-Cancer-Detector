@@ -1,6 +1,6 @@
-#mid/average design
 import os
 import cv2
+import pandas as pd
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
@@ -271,8 +271,6 @@ with st.sidebar:
 # 5. DRIBBBLE HOSPITAL INTERIOR CSS ENGINE
 # ==========================================
 def inject_clinical_theme(theme_choice: str):
-    # SVG architectural background inspired by Sekond's "Hospital interiors" 2D Dribbble shot:
-    # Features sunlit hospital corridor perspective windows, ceiling light panels, Wainscoting dado rail, & medical cross motifs
     sekond_hospital_svg = (
         "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='1440' height='900' viewBox='0 0 1440 900'%3E"
         "%3Cdefs%3E"
@@ -289,11 +287,9 @@ def inject_clinical_theme(theme_choice: str):
         "%3C/linearGradient%3E"
         "%3C/defs%3E"
         "%3Crect width='1440' height='900' fill='url(%23wall)'/%3E"
-        "%3C!-- Ceiling Architectural Light Panels --%3E"
         "%3Cpolygon points='220,0 440,0 390,42 260,42' fill='%23ffffff' opacity='0.85'/%3E"
         "%3Cpolygon points='620,0 840,0 800,42 660,42' fill='%23ffffff' opacity='0.85'/%3E"
         "%3Cpolygon points='1020,0 1240,0 1190,42 1060,42' fill='%23ffffff' opacity='0.85'/%3E"
-        "%3C!-- Hospital Ward Corridor Windows --%3E"
         "%3Cg opacity='0.55'%3E"
         "%3Crect x='90' y='110' width='260' height='310' rx='10' fill='%23ffffff' stroke='%2399cbd2' stroke-width='4'/%3E"
         "%3Cline x1='220' y1='110' x2='220' y2='420' stroke='%23b2d8de' stroke-width='3'/%3E"
@@ -302,10 +298,8 @@ def inject_clinical_theme(theme_choice: str):
         "%3Cline x1='1220' y1='110' x2='1220' y2='420' stroke='%23b2d8de' stroke-width='3'/%3E"
         "%3Cline x1='1090' y1='265' x2='1350' y2='265' stroke='%23b2d8de' stroke-width='3'/%3E"
         "%3C/g%3E"
-        "%3C!-- Sunbeams Across Ward Wall --%3E"
         "%3Cpolygon points='90,110 350,110 640,900 220,900' fill='url(%23sunbeam)'/%3E"
         "%3Cpolygon points='1090,110 1350,110 1440,650 1180,900' fill='url(%23sunbeam)'/%3E"
-        "%3C!-- Subtle Clinical Cross Emblem on Interior Wall --%3E"
         "%3Cg opacity='0.18' fill='%230d9488'%3E"
         "%3Ccircle cx='720' cy='250' r='74' fill='none' stroke='%230d9488' stroke-width='3'/%3E"
         "%3Crect x='706' y='204' width='28' height='92' rx='5'/%3E"
@@ -328,8 +322,7 @@ def inject_clinical_theme(theme_choice: str):
         text_primary = "#0f2937"
         text_secondary = "#476978"
         accent_primary = "#0d9488"
-        accent_secondary = "#0284c7"
-        card_bg = "rgba(255, 255, 255, 0.84)"
+        card_bg = "rgba(255, 255, 255, 0.86)"
         card_border = "rgba(13, 148, 136, 0.24)"
         card_shadow = "0 12px 32px -4px rgba(15, 41, 55, 0.08), 0 4px 12px rgba(13, 148, 136, 0.06)"
         banner_bg = "linear-gradient(105deg, rgba(255, 255, 255, 0.94) 0%, rgba(236, 251, 252, 0.92) 100%)"
@@ -355,7 +348,6 @@ def inject_clinical_theme(theme_choice: str):
         text_primary = "#0f172a"
         text_secondary = "#475569"
         accent_primary = "#0284c7"
-        accent_secondary = "#0d9488"
         card_bg = "rgba(255, 255, 255, 0.88)"
         card_border = "rgba(2, 132, 199, 0.20)"
         card_shadow = "0 14px 34px -6px rgba(2, 132, 199, 0.10), 0 4px 12px rgba(15, 23, 42, 0.04)"
@@ -365,7 +357,6 @@ def inject_clinical_theme(theme_choice: str):
         pill_border = "#bae6fd"
         input_bg = "#ffffff"
     else:
-        # PACS Radiology Darkroom
         bg_css = """
             background-color: #060d14;
             background-image: 
@@ -382,7 +373,6 @@ def inject_clinical_theme(theme_choice: str):
         text_primary = "#f8fafc"
         text_secondary = "#94a3b8"
         accent_primary = "#14b8a6"
-        accent_secondary = "#38bdf8"
         card_bg = "rgba(13, 24, 38, 0.86)"
         card_border = "rgba(45, 212, 191, 0.25)"
         card_shadow = "0 12px 32px rgba(0, 0, 0, 0.45)"
@@ -401,7 +391,6 @@ def inject_clinical_theme(theme_choice: str):
             font-family: 'Plus Jakarta Sans', sans-serif;
         }}
 
-        /* Ensure clean typography contrast across light & dark themes */
         .stApp h1, .stApp h2, .stApp h3, .stApp h4, .stApp label, .stApp .stMarkdown p {{
             color: {text_primary} !important;
         }}
@@ -425,7 +414,7 @@ def inject_clinical_theme(theme_choice: str):
             font-weight: 600;
         }}
 
-        /* Sleek Selectbox, TextInput & FileUploader Styling */
+        /* Selectbox, TextInput, Buttons & FileUploader */
         div[data-baseweb="select"] > div,
         div[data-baseweb="input"] > div {{
             background-color: {input_bg} !important;
@@ -446,6 +435,24 @@ def inject_clinical_theme(theme_choice: str):
         [data-testid="stFileUploaderDropzone"] small {{
             color: {text_secondary} !important;
         }}
+        [data-testid="stFileUploaderDropzone"] button,
+        .stButton > button,
+        .stDownloadButton > button {{
+            background-color: {accent_primary} !important;
+            color: #ffffff !important;
+            border: none !important;
+            border-radius: 8px !important;
+            font-weight: 600 !important;
+            padding: 0.45rem 1rem !important;
+        }}
+
+        /* Tabs Styling */
+        button[data-baseweb="tab"] {{
+            font-family: 'Plus Jakarta Sans', sans-serif !important;
+            font-weight: 700 !important;
+            font-size: 0.95rem !important;
+            color: {text_primary} !important;
+        }}
 
         /* Hospital Interior Top Header Banner */
         .his-banner {{
@@ -454,7 +461,7 @@ def inject_clinical_theme(theme_choice: str):
             border-left: 6px solid {accent_primary};
             border-radius: 16px;
             padding: 22px 28px;
-            margin-bottom: 22px;
+            margin-bottom: 18px;
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -629,7 +636,6 @@ def inject_clinical_theme(theme_choice: str):
             backdrop-filter: blur(10px);
         }}
 
-        /* Animated ECG Pulse Line */
         .ecg-svg {{
              width: 110px;
              height: 28px;
@@ -657,7 +663,7 @@ inject_clinical_theme(ui_theme)
 
 
 # ==========================================
-# 6. MAIN HOSPITAL WORKSTATION INTERFACE
+# 6. MAIN HOSPITAL WORKSTATION HEADER & TABS
 # ==========================================
 st.markdown("""
 <div class="his-banner">
@@ -679,155 +685,305 @@ st.markdown("""
 </div>
 """, unsafe_allow_html=True)
 
-st.markdown("""
-<div class="clinical-panel">
-    <div class="panel-header">🧪 SPECIMEN ACQUISITION & HOSPITAL BIOPSY ARCHIVE</div>
-</div>
-""", unsafe_allow_html=True)
-
-acq_col1, acq_col2 = st.columns([1.15, 1.35])
+tab_single, tab_batch = st.tabs([
+    "🔬 Single-Slide Diagnostic Workstation",
+    "📊 Batch Slide Screening & Summary Table"
+])
 
 sample_dir = "sample_biopsy_patches"
-sample_options = {"-- Use Custom Uploaded Slide (Right) --": None}
-
-if os.path.isdir(sample_dir):
-    for fname in sorted(os.listdir(sample_dir)):
-        if fname.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff")):
-            if "cancer" in fname.lower():
-                label = f"🔴 Metastatic Reference — {fname}"
-            elif "normal" in fname.lower():
-                label = f"🟢 Benign / Normal Reference — {fname}"
-            else:
-                label = f"🧫 Biopsy Specimen — {fname}"
-            sample_options[label] = os.path.join(sample_dir, fname)
-
-with acq_col1:
-    selected_sample_label = st.selectbox(
-        "Quick-Load Hospital Reference Biopsy (No Upload Needed)",
-        options=list(sample_options.keys()),
-        index=1 if len(sample_options) > 1 else 0
-    )
-
-with acq_col2:
-    uploaded_file = st.file_uploader(
-        "Or Upload External Lymph Node Patch (PNG / JPG / TIF)",
-        type=["png", "jpg", "jpeg", "tif", "tiff"]
-    )
-
-active_img = None
-specimen_id = None
-source_mode = None
-
-if uploaded_file is not None:
-    active_img = Image.open(uploaded_file).convert("RGB")
-    specimen_id = uploaded_file.name
-    source_mode = "EXTERNAL UPLOAD"
-elif sample_options.get(selected_sample_label) is not None:
-    sample_path = sample_options[selected_sample_label]
-    if os.path.exists(sample_path):
-        active_img = Image.open(sample_path).convert("RGB")
-        specimen_id = os.path.basename(sample_path)
-        source_mode = "REFERENCE BIOPSY BANK"
-
 
 # ==========================================
-# 7. DIAGNOSTIC VIEWPORT & CLINICAL REPORT
+# TAB 1: SINGLE-SLIDE WORKSTATION
 # ==========================================
-if active_img is not None and model_loaded:
-    img_np = np.array(active_img)
-    mean_intensity = np.mean(img_np)
-
-    st.markdown(f"""
-    <div class="meta-strip">
-        <span><b>SPECIMEN ID:</b> {specimen_id}</span>
-        <span><b>SOURCE:</b> {source_mode}</span>
-        <span><b>NATIVE FOV:</b> {active_img.size[0]}×{active_img.size[1]} px (Rendered at 576×576 HD)</span>
-        <span><b>TARGET ROI:</b> 32×32 px Center [32:64, 32:64]</span>
-        <span><b>OPTICAL INTENSITY:</b> {mean_intensity:.1f} / 255</span>
+with tab_single:
+    st.markdown("""
+    <div class="clinical-panel">
+        <div class="panel-header">🧪 SPECIMEN ACQUISITION & HOSPITAL BIOPSY ARCHIVE</div>
     </div>
     """, unsafe_allow_html=True)
 
-    mean_prob, rot_probs = predict_with_4x_tta(model, active_img, device)
-    cam_map = generate_gradcam(model, active_img, device)
-    is_cancer = mean_prob >= threshold
+    acq_col1, acq_col2 = st.columns([1.15, 1.35])
 
-    roi_img = draw_roi_and_overlay(
-        active_img,
-        cam=None,
-        roi_color=(13, 148, 136),
-        enhance=enhance_optics,
-        sharpen_strength=sharpen_strength
-    )
-    cam_img = draw_roi_and_overlay(
-        active_img,
-        cam=cam_map,
-        roi_color=(255, 255, 255),
-        enhance=enhance_optics,
-        sharpen_strength=sharpen_strength
-    )
+    sample_options = {"-- Use Custom Uploaded Slide (Right) --": None}
+    if os.path.isdir(sample_dir):
+        for fname in sorted(os.listdir(sample_dir)):
+            if fname.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff")):
+                if "cancer" in fname.lower():
+                    label = f"🔴 Metastatic Reference — {fname}"
+                elif "normal" in fname.lower():
+                    label = f"🟢 Benign / Normal Reference — {fname}"
+                else:
+                    label = f"🧫 Biopsy Specimen — {fname}"
+                sample_options[label] = os.path.join(sample_dir, fname)
 
-    col1, col2, col3 = st.columns([1, 1, 1.15], gap="medium")
+    with acq_col1:
+        selected_sample_label = st.selectbox(
+            "Quick-Load Hospital Reference Biopsy (No Upload Needed)",
+            options=list(sample_options.keys()),
+            index=1 if len(sample_options) > 1 else 0
+        )
 
-    with col1:
-        st.markdown("""
-        <div class="viewport-card">
-            <div class="viewport-header">
-                <span>1. H&E BRIGHTFIELD + ROI</span>
-                <span class="viewport-tag">6x LANCZOS-4 HD</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.image(roi_img, use_container_width=True, caption="Teal Square: 32×32px Diagnostic ROI Zone")
+    with acq_col2:
+        uploaded_file = st.file_uploader(
+            "Or Upload External Lymph Node Patch (PNG / JPG / TIF)",
+            type=["png", "jpg", "jpeg", "tif", "tiff"]
+        )
 
-    with col2:
-        st.markdown("""
-        <div class="viewport-card">
-            <div class="viewport-header">
-                <span>2. GRAD-CAM ACTIVATION</span>
-                <span class="viewport-tag">LAYER-4 ATTENTION</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
-        st.image(cam_img, use_container_width=True, caption="Red/Yellow Hotspots: High Feature Attribution")
+    active_img = None
+    specimen_id = None
+    source_mode = None
 
-    with col3:
-        st.markdown("""
-        <div class="viewport-card">
-            <div class="viewport-header">
-                <span>3. AUTOMATED PATHOLOGY VERDICT</span>
-                <span class="viewport-tag">4x TTA CONSENSUS</span>
-            </div>
-        </div>
-        """, unsafe_allow_html=True)
+    if uploaded_file is not None:
+        active_img = Image.open(uploaded_file).convert("RGB")
+        specimen_id = uploaded_file.name
+        source_mode = "EXTERNAL UPLOAD"
+    elif sample_options.get(selected_sample_label) is not None:
+        sample_path = sample_options[selected_sample_label]
+        if os.path.exists(sample_path):
+            active_img = Image.open(sample_path).convert("RGB")
+            specimen_id = os.path.basename(sample_path)
+            source_mode = "REFERENCE BIOPSY BANK"
 
-        if is_cancer:
-            st.markdown(
-                '<div class="verdict-cancer">🚨 METASTATIC TISSUE DETECTED<br>'
-                '<span style="font-size:0.80rem;font-weight:600;">POSITIVE FOR LYMPH NODE METASTASIS</span></div>',
-                unsafe_allow_html=True
-            )
-            val_color = "#dc2626"
-        else:
-            st.markdown(
-                '<div class="verdict-normal">✅ BENIGN / NORMAL TISSUE<br>'
-                '<span style="font-size:0.80rem;font-weight:600;">NO METASTATIC FOCI IDENTIFIED</span></div>',
-                unsafe_allow_html=True
-            )
-            val_color = "#059669"
-
-        st.progress(min(max(mean_prob, 0.0), 1.0))
+    if active_img is not None and model_loaded:
+        img_np = np.array(active_img)
+        mean_intensity = np.mean(img_np)
 
         st.markdown(f"""
-        <div class="prob-readout">
-            <div class="prob-label">4x TTA Malignancy Probability</div>
-            <div class="prob-value" style="color: {val_color};">{mean_prob * 100:.2f}%</div>
-            <div class="prob-label" style="font-size: 0.72rem;">
-                Calibrated Cutoff Threshold: <b>{threshold * 100:.1f}% ({threshold:.3f})</b>
+        <div class="meta-strip">
+            <span><b>SPECIMEN ID:</b> {specimen_id}</span>
+            <span><b>SOURCE:</b> {source_mode}</span>
+            <span><b>NATIVE FOV:</b> {active_img.size[0]}×{active_img.size[1]} px (Rendered at 576×576 HD)</span>
+            <span><b>TARGET ROI:</b> 32×32 px Center [32:64, 32:64]</span>
+            <span><b>OPTICAL INTENSITY:</b> {mean_intensity:.1f} / 255</span>
+        </div>
+        """, unsafe_allow_html=True)
+
+        mean_prob, rot_probs = predict_with_4x_tta(model, active_img, device)
+        cam_map = generate_gradcam(model, active_img, device)
+        is_cancer = mean_prob >= threshold
+
+        roi_img = draw_roi_and_overlay(
+            active_img,
+            cam=None,
+            roi_color=(13, 148, 136),
+            enhance=enhance_optics,
+            sharpen_strength=sharpen_strength
+        )
+        cam_img = draw_roi_and_overlay(
+            active_img,
+            cam=cam_map,
+            roi_color=(255, 255, 255),
+            enhance=enhance_optics,
+            sharpen_strength=sharpen_strength
+        )
+
+        col1, col2, col3 = st.columns([1, 1, 1.15], gap="medium")
+
+        with col1:
+            st.markdown("""
+            <div class="viewport-card">
+                <div class="viewport-header">
+                    <span>1. H&E BRIGHTFIELD + ROI</span>
+                    <span class="viewport-tag">6x LANCZOS-4 HD</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.image(roi_img, use_container_width=True, caption="Teal Square: 32×32px Diagnostic ROI Zone")
+
+        with col2:
+            st.markdown("""
+            <div class="viewport-card">
+                <div class="viewport-header">
+                    <span>2. GRAD-CAM ACTIVATION</span>
+                    <span class="viewport-tag">LAYER-4 ATTENTION</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+            st.image(cam_img, use_container_width=True, caption="Red/Yellow Hotspots: High Feature Attribution")
+
+        with col3:
+            st.markdown("""
+            <div class="viewport-card">
+                <div class="viewport-header">
+                    <span>3. AUTOMATED PATHOLOGY VERDICT</span>
+                    <span class="viewport-tag">4x TTA CONSENSUS</span>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            if is_cancer:
+                st.markdown(
+                    '<div class="verdict-cancer">🚨 METASTATIC TISSUE DETECTED<br>'
+                    '<span style="font-size:0.80rem;font-weight:600;">POSITIVE FOR LYMPH NODE METASTASIS</span></div>',
+                    unsafe_allow_html=True
+                )
+                val_color = "#dc2626"
+            else:
+                st.markdown(
+                    '<div class="verdict-normal">✅ BENIGN / NORMAL TISSUE<br>'
+                    '<span style="font-size:0.80rem;font-weight:600;">NO METASTATIC FOCI IDENTIFIED</span></div>',
+                    unsafe_allow_html=True
+                )
+                val_color = "#059669"
+
+            st.progress(min(max(mean_prob, 0.0), 1.0))
+
+            st.markdown(f"""
+            <div class="prob-readout">
+                <div class="prob-label">4x TTA Malignancy Probability</div>
+                <div class="prob-value" style="color: {val_color};">{mean_prob * 100:.2f}%</div>
+                <div class="prob-label" style="font-size: 0.72rem;">
+                    Calibrated Cutoff Threshold: <b>{threshold * 100:.1f}% ({threshold:.3f})</b>
+                </div>
+            </div>
+            """, unsafe_allow_html=True)
+
+            with st.expander("📐 View 4x Rotational TTA Telemetry Breakdown", expanded=True):
+                r_cols = st.columns(4)
+                for idx, (ang, p_val) in enumerate(rot_probs.items()):
+                    r_cols[idx].metric(label=f"Rot {ang}", value=f"{p_val * 100:.1f}%")
+
+
+# ==========================================
+# TAB 2: BATCH SLIDE SCREENING & SUMMARY TABLE
+# ==========================================
+with tab_batch:
+    st.markdown("""
+    <div class="clinical-panel">
+        <div class="panel-header">📊 MULTI-SLIDE COHORT SCREENING & ACCURACY VALIDATION</div>
+    </div>
+    """, unsafe_allow_html=True)
+
+    b_col1, b_col2 = st.columns([1.4, 1.0], gap="medium")
+
+    with b_col1:
+        batch_files = st.file_uploader(
+            "Upload Multiple Lymph Node Biopsy Patches (Select 10–100+ PNG / JPG / TIF files)",
+            type=["png", "jpg", "jpeg", "tif", "tiff"],
+            accept_multiple_files=True
+        )
+        run_builtin_batch = st.checkbox(
+            "Or evaluate all 8 built-in Reference Biopsy Patches automatically",
+            value=(not batch_files)
+        )
+
+    with b_col2:
+        gt_csv_file = st.file_uploader(
+            "Optional: Upload Ground-Truth Labels CSV (columns: id, label) to compute Accuracy",
+            type=["csv"]
+        )
+
+    gt_lookup = {}
+    if gt_csv_file is not None:
+        try:
+            gt_df = pd.read_csv(gt_csv_file)
+            if "id" in gt_df.columns and "label" in gt_df.columns:
+                gt_lookup = dict(zip(gt_df["id"].astype(str), gt_df["label"].astype(int)))
+                st.success(f"Loaded {len(gt_lookup):,} ground-truth labels from CSV.")
+        except Exception as e:
+            st.warning(f"Could not parse ground-truth CSV: {e}")
+
+    batch_items = []
+    if batch_files:
+        for f in batch_files:
+            batch_items.append((f.name, Image.open(f).convert("RGB")))
+    elif run_builtin_batch and os.path.isdir(sample_dir):
+        for fname in sorted(os.listdir(sample_dir)):
+            if fname.lower().endswith((".png", ".jpg", ".jpeg", ".tif", ".tiff")):
+                fpath = os.path.join(sample_dir, fname)
+                batch_items.append((fname, Image.open(fpath).convert("RGB")))
+
+    if batch_items and model_loaded:
+        records = []
+        progress_bar = st.progress(0)
+
+        for idx, (fname, pil_img) in enumerate(batch_items):
+            mean_p, rot_p = predict_with_4x_tta(model, pil_img, device)
+            pred_label = 1 if mean_p >= threshold else 0
+            verdict_str = "🚨 METASTATIC (POS)" if pred_label == 1 else "✅ BENIGN (NEG)"
+
+            if mean_p >= 0.75:
+                risk_tier = "High Risk"
+            elif mean_p >= threshold:
+                risk_tier = "Moderate Risk"
+            else:
+                risk_tier = "Low Risk"
+
+            stem_id = os.path.splitext(fname)[0]
+            true_label = None
+            if stem_id in gt_lookup:
+                true_label = gt_lookup[stem_id]
+            elif "cancer" in fname.lower():
+                true_label = 1
+            elif "normal" in fname.lower():
+                true_label = 0
+
+            if true_label is not None:
+                gt_str = "Metastatic (1)" if true_label == 1 else "Benign (0)"
+                match_str = "✔️ Correct" if pred_label == true_label else "❌ Mismatch"
+                is_correct = int(pred_label == true_label)
+            else:
+                gt_str = "Unlabeled"
+                match_str = "—"
+                is_correct = None
+
+            records.append({
+                "Specimen Filename": fname,
+                "Clinical Verdict": verdict_str,
+                "4x TTA Probability (%)": round(mean_p * 100, 2),
+                "Risk Tier": risk_tier,
+                "Ground Truth": gt_str,
+                "Audit Result": match_str,
+                "Rot 0° (%)": round(rot_p["0°"] * 100, 1),
+                "Rot 90° (%)": round(rot_p["90°"] * 100, 1),
+                "Rot 180° (%)": round(rot_p["180°"] * 100, 1),
+                "Rot 270° (%)": round(rot_p["270°"] * 100, 1),
+                "Mean Intensity": round(float(np.mean(np.array(pil_img))), 1),
+                "_is_cancer": pred_label,
+                "_is_correct": is_correct
+            })
+            progress_bar.progress((idx + 1) / len(batch_items))
+
+        progress_bar.empty()
+
+        summary_df = pd.DataFrame(records).sort_values(
+            by="4x TTA Probability (%)", ascending=False
+        ).reset_index(drop=True)
+        summary_df.index = summary_df.index + 1
+        summary_df.index.name = "Rank"
+
+        total_slides = len(summary_df)
+        pos_count = int(summary_df["_is_cancer"].sum())
+        neg_count = total_slides - pos_count
+        labeled_rows = summary_df[summary_df["_is_correct"].notnull()]
+
+        k1, k2, k3, k4 = st.columns(4)
+        k1.metric("Total Slides Screened", f"{total_slides}")
+        k2.metric("🚨 Metastatic Detected", f"{pos_count} ({pos_count / total_slides * 100:.1f}%)")
+        k3.metric("✅ Benign Cleared", f"{neg_count} ({neg_count / total_slides * 100:.1f}%)")
+        if len(labeled_rows) > 0:
+            batch_acc = labeled_rows["_is_correct"].mean() * 100
+            k4.metric("🎯 Verified Batch Accuracy", f"{batch_acc:.2f}% ({int(labeled_rows['_is_correct'].sum())}/{len(labeled_rows)})")
+        else:
+            k4.metric("Mean Malignancy Score", f"{summary_df['4x TTA Probability (%)'].mean():.2f}%")
+
+        display_cols = [c for c in summary_df.columns if not c.startswith("_")]
+
+        st.markdown("""
+        <div class="viewport-card" style="margin-top: 12px;">
+            <div class="viewport-header">
+                <span>📋 RANKED CLINICAL BATCH SUMMARY TABLE (SORTED BY MALIGNANCY RISK)</span>
+                <span class="viewport-tag">4x TTA COHORT AUDIT</span>
             </div>
         </div>
         """, unsafe_allow_html=True)
 
-        with st.expander("📐 View 4x Rotational TTA Telemetry Breakdown", expanded=True):
-            r_cols = st.columns(4)
-            for idx, (ang, p_val) in enumerate(rot_probs.items()):
-                r_cols[idx].metric(label=f"Rot {ang}", value=f"{p_val * 100:.1f}%")
+        st.dataframe(summary_df[display_cols], use_container_width=True, height=340)
+
+        csv_bytes = summary_df[display_cols].to_csv(index=True).encode("utf-8")
+        st.download_button(
+            label="📥 Download Clinical Batch Summary Table (CSV)",
+            data=csv_bytes,
+            file_name="pcam_clinical_batch_summary.csv",
+            mime="text/csv"
+        )
