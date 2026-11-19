@@ -1,0 +1,15 @@
+{
+  "sha256": "8b6a73b9c3bd445c16e0c50116524c13fc32ce59fad9dd1b5efbe32cbc9255aa",
+  "threshold": 0.1260986328125,
+  "size": 86306246,
+  "samples": [
+    "cancer_patch_1_idx1.png",
+    "cancer_patch_2_idx3.png",
+    "cancer_patch_3_idx4.png",
+    "cancer_patch_4_idx6.png",
+    "normal_patch_1_idx0.png",
+    "normal_patch_2_idx2.png",
+    "normal_patch_3_idx5.png",
+    "normal_patch_4_idx9.png"
+  ]
+}

@@ -29,7 +29,9 @@ import {
 } from "lucide-react";
 import { Membrane } from "./art";
 import { sample, pathways, providers } from "./data";
+import { Detector } from "./detector";
 const tabs = [
+  ["PCam detector", Microscope],
   ["Intake", Layers],
   ["Diagnostic pathways", Route],
   ["Care navigator", Compass],
@@ -186,7 +188,7 @@ function App() {
   function advance(e) {
     e.preventDefault();
     D(Math.max(done, step + 1));
-    if (step === 3) T(1);
+    if (step === 3) T(2);
     else S(step + 1);
   }
   function changeTab(i) {
@@ -244,22 +246,8 @@ function App() {
             </div>
           </div>
           <div className="header-actions shrink-0">
-            {bridge && (
-              <button
-                className="subbtn"
-                onClick={() =>
-                  emit("setComponentValue", {
-                    value: "detector",
-                    dataType: "json",
-                  })
-                }
-              >
-                <Microscope size={16} />
-                PCam detector
-              </button>
-            )}
             <span className="demo">
-              <i /> Demo workspace
+              <i /> {tab === 0 ? "Pathology workspace" : "Demo workspace"}
             </span>
             <button
               className="help"
@@ -275,14 +263,23 @@ function App() {
         <section className="hero">
           <div className="hero-copy relative">
             <span className="overline">
-              <span className="shortline" /> CLINICAL WORKSPACE
+              <span className="shortline" /> AETHERIS SPATIAL DIAGNOSTICS
             </span>
             <h1>
-              Spatial <em>Diagnostics</em>
+              {tab === 0 ? (
+                <>
+                  PCam <em>Histopathology</em>
+                </>
+              ) : (
+                <>
+                  Spatial <em>Diagnostics</em>
+                </>
+              )}
             </h1>
             <p>
-              From your health history to a more informed conversation with your
-              clinician.
+              {tab === 0
+                ? "Examine a lymph-node patch with the trained center-aware ResNet-34, four rotational views and layer-4 Grad-CAM."
+                : "From your health history to a more informed conversation with your clinician."}
             </p>
           </div>
           <Membrane />
@@ -300,10 +297,10 @@ function App() {
                 tabIndex={i === tab ? 0 : -1}
                 onKeyDown={(e) => {
                   const n = {
-                    ArrowRight: (i + 1) % 3,
-                    ArrowLeft: (i + 2) % 3,
+                    ArrowRight: (i + 1) % tabs.length,
+                    ArrowLeft: (i + tabs.length - 1) % tabs.length,
                     Home: 0,
-                    End: 2,
+                    End: tabs.length - 1,
                   }[e.key];
                   if (n !== undefined) {
                     e.preventDefault();
@@ -327,6 +324,16 @@ function App() {
           key={tab}
         >
           {tab === 0 ? (
+            <Detector
+              bridge={bridge}
+              openNative={() =>
+                emit("setComponentValue", {
+                  value: "detector",
+                  dataType: "json",
+                })
+              }
+            />
+          ) : tab === 1 ? (
             <>
               <div className="sectionhead">
                 <div>
@@ -529,7 +536,7 @@ function App() {
                 </div>
               </div>
             </>
-          ) : tab === 1 ? (
+          ) : tab === 2 ? (
             <>
               <div className="sectionhead">
                 <div>
@@ -538,7 +545,7 @@ function App() {
                   </span>
                   <h2>Diagnostic pathways</h2>
                 </div>
-                <button className="subbtn" onClick={() => changeTab(0)}>
+                <button className="subbtn" onClick={() => changeTab(1)}>
                   Review intake
                 </button>
               </div>
@@ -757,7 +764,8 @@ function App() {
         ) : (
           <>
             <p>
-              Aetheris Spatial Diagnostics uses an editable fictional adult
+              The PCam workstation uses the released model checkpoint. The
+              separate intake and pathway tools use an editable fictional adult
               profile and published US and UK guidance to prepare discussion
               topics. Local recommendations may differ. Report contents are
               never processed.

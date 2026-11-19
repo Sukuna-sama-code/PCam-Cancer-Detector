@@ -30,3 +30,37 @@ for (const font of ["instrument-serif", "inter"])
     "dist/" + font + "-license.txt",
   );
 await copyFile("index.html", "dist/index.html");
+
+const { cp } = await import("node:fs/promises");
+await cp("pcam-assets", "dist/pcam-assets", { recursive: true });
+for (const name of ["pcam-worker", "pcam-optics"])
+  await copyFile("src/" + name + ".js", "dist/" + name + ".js");
+// Package a self-contained runtime and checkpoint for private static hosting.
+if (process.env.PCAM_CHECKPOINT) {
+  const { createHash } = await import("node:crypto");
+  const model = JSON.parse(await readFile("pcam-assets/model.json", "utf8"));
+  const weights = await readFile(process.env.PCAM_CHECKPOINT);
+  if (createHash("sha256").update(weights).digest("hex") !== model.sha256)
+    throw Error("Wrong PCam checkpoint");
+  await mkdir("dist/runtime", { recursive: true });
+  const names = [
+    "ort.wasm.min.mjs",
+    "ort-wasm-simd-threaded.mjs",
+    "ort-wasm-simd-threaded.wasm",
+  ];
+  for (const name of names)
+    await copyFile(
+      "node_modules/onnxruntime-web/dist/" + name,
+      "dist/runtime/" + name,
+    );
+  const parts = [];
+  for (let offset = 0; offset < weights.length; offset += 8 * 1024 * 1024) {
+    const name = "weights-" + parts.length + ".bin";
+    parts.push(name);
+    await writeFile(
+      "dist/runtime/" + name,
+      weights.subarray(offset, offset + 8 * 1024 * 1024),
+    );
+  }
+  await writeFile("dist/runtime/assets.json", JSON.stringify({ parts }));
+}
