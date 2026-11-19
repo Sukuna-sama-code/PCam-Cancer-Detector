@@ -6,4 +6,3 @@ pillow
 numpy
 pandas
 plotly
-scikit-learn

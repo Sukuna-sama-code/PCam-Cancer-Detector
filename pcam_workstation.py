@@ -9,15 +9,12 @@ from torchvision import models, transforms
 from PIL import Image
 import plotly.graph_objects as go
 import streamlit as st
-from sklearn.datasets import load_breast_cancer
-from sklearn.ensemble import RandomForestClassifier
-from sklearn.model_selection import train_test_split
 
 # ==============================================================================
 # 1. PAGE CONFIGURATION
 # ==============================================================================
 st.set_page_config(
-    page_title="PATHO-AI | Redlight Studio Oncology Workstation",
+    page_title="Aetheris | PCam workstation",
     page_icon="🧬",
     layout="wide",
     initial_sidebar_state="expanded"
@@ -894,36 +891,6 @@ def draw_roi_and_overlay(img_pil, cam=None, roi_color=(0, 229, 163), enhance=Tru
 
 
 # ==============================================================================
-# 5. MODEL 2: BIOMARKER TABULAR PIPELINE (SCIKIT-LEARN + PLUG-IN HOOK)
-# ==============================================================================
-@st.cache_resource
-def load_biomarker_pipeline():
-    """
-    Lightweight cellular biomarker classifier trained on startup so the 3D Biomarker
-    Explorer, sliders, probability gauges, and feature-importance charts run out-of-the-box.
-
-    >>> PLUG IN YOUR OWN .pkl OR .h5 MODEL HERE <<<
-    """
-    data = load_breast_cancer(as_frame=True)
-    df = data.frame.copy()
-    df["malignant"] = (1 - df["target"]).astype(int)
-
-    selected_features = [
-        "mean radius", "mean texture", "mean perimeter", "mean area",
-        "mean smoothness", "mean compactness", "mean concavity", "mean concave points",
-        "worst radius", "worst concavity"
-    ]
-    X = df[selected_features]
-    y = df["malignant"]
-
-    X_train, X_test, y_train, y_test = train_test_split(X, y, test_size=0.2, random_state=42, stratify=y)
-    clf = RandomForestClassifier(n_estimators=180, max_depth=8, random_state=42)
-    clf.fit(X_train, y_train)
-    acc = clf.score(X_test, y_test)
-    return clf, df, selected_features, acc
-
-
-# ==============================================================================
 # 6. SIDEBAR NAVIGATION & SYSTEM CALIBRATION
 # ==============================================================================
 with st.sidebar:
@@ -933,7 +900,7 @@ with st.sidebar:
             PATHO-AI // REDLIGHT STUDIO v4.2
         </div>
         <div style="font-size:1.28rem; font-weight:800; color:#FFF8FA; margin-top:2px;">
-            🧬 Oncology Suite
+            PCam workstation
         </div>
     </div>
     """, unsafe_allow_html=True)
@@ -942,7 +909,6 @@ with st.sidebar:
         "Workspace Navigation",
         options=[
             "🔬 Diagnostic Predictor",
-            "🧬 3D Biomarker Explorer",
             "📈 Model Insights"
         ],
         label_visibility="collapsed"
@@ -966,7 +932,7 @@ with st.sidebar:
             st.error(f"Checkpoint Error: {e}")
             default_thresh, val_auc, test_auc = 0.126, 0.9667, 0.9534
     else:
-        st.warning("PyTorch bundle not found locally. 3D Biomarker Explorer remains 100% active.")
+        st.warning("PCam checkpoint unavailable. Run git lfs pull in the repository to download the deployment bundle.")
         default_thresh, val_auc, test_auc = 0.126, 0.9667, 0.9534
 
     threshold = st.slider(
@@ -1006,7 +972,7 @@ st.markdown(f"""
         <div class="hero-kicker">DEPARTMENT OF COMPUTATIONAL PATHOLOGY & ONCOLOGY</div>
         <div class="hero-title">PCam Histopathology Metastasis Workstation</div>
         <div class="hero-sub">
-            Center-Aware ResNet-34 • 4x Rotational Test-Time Augmentation • Grad-CAM Attention & 3D Biomarker Analytics
+            Center-Aware ResNet-34 • 4x Rotational Test-Time Augmentation • Layer-4 Grad-CAM
         </div>
         <div class="pill-row">
             <span class="luxe-pill luxe-pill-live">● CORE {'ONLINE' if model_loaded else 'STANDBY'}</span>
@@ -1357,153 +1323,6 @@ if page == "🔬 Diagnostic Predictor":
                 file_name="pcam_batch_diagnostic_report.csv",
                 mime="text/csv"
             )
-    st.markdown('</div>', unsafe_allow_html=True)
-
-
-# ==============================================================================
-# PAGE 2: 3D BIOMARKER EXPLORER
-# ==============================================================================
-elif page == "🧬 3D Biomarker Explorer":
-    st.markdown('<div class="page-stage-3d">', unsafe_allow_html=True)
-    clf, bio_df, feat_names, bio_acc = load_biomarker_pipeline()
-
-    st.markdown(f"""
-    <div class="luxe-panel">
-        <div class="panel-head">
-            <span>🧬 Interactive 3D Cellular Biomarker Explorer & Morphometric Predictor</span>
-            <span class="panel-tag">TEST ACCURACY: {bio_acc * 100:.1f}% • READY FOR .PKL / .H5</span>
-        </div>
-    </div>
-    """, unsafe_allow_html=True)
-
-    in_col, out_col = st.columns([1.0, 1.35], gap="large")
-
-    with in_col:
-        st.markdown("#### Cellular Morphometric Inputs")
-        t_geom, t_shape = st.tabs(["📐 Nuclear Geometry", "🔬 Boundary & Texture"])
-
-        user_vals = {}
-        with t_geom:
-            user_vals["mean radius"] = st.slider(
-                "Mean Nuclear Radius (µm)", 6.0, 29.0, 14.8, 0.1,
-                help="Average distance from center to perimeter of cell nuclei."
-            )
-            user_vals["mean perimeter"] = st.slider(
-                "Mean Perimeter (µm)", 43.0, 190.0, 96.5, 0.5,
-                help="Average nuclear boundary length; enlarged in malignant pleomorphism."
-            )
-            user_vals["mean area"] = st.slider(
-                "Mean Nuclear Area (µm²)", 140.0, 2500.0, 680.0, 5.0,
-                help="Cross-sectional area of stained nuclei."
-            )
-            user_vals["worst radius"] = st.slider(
-                "Worst (Peak) Nuclear Radius (µm)", 7.0, 36.0, 17.5, 0.1,
-                help="Mean of the three largest abnormal nuclei detected in the field."
-            )
-            user_vals["mean texture"] = st.slider(
-                "Chromatin Texture Variance", 9.0, 40.0, 19.8, 0.2,
-                help="Standard deviation of grayscale chromatin intensity values."
-            )
-
-        with t_shape:
-            user_vals["mean smoothness"] = st.slider(
-                "Nuclear Smoothness", 0.05, 0.16, 0.098, 0.002,
-                help="Local variation in nuclear radius lengths."
-            )
-            user_vals["mean compactness"] = st.slider(
-                "Nuclear Compactness", 0.02, 0.35, 0.115, 0.005,
-                help="(Perimeter² / Area) - 1.0; higher scores indicate irregular margins."
-            )
-            user_vals["mean concavity"] = st.slider(
-                "Contour Concavity", 0.00, 0.43, 0.105, 0.005,
-                help="Severity of concave indentations along the nuclear contour."
-            )
-            user_vals["mean concave points"] = st.slider(
-                "Concave Points Count", 0.00, 0.20, 0.055, 0.002,
-                help="Number of concave folds on the nuclear perimeter."
-            )
-            user_vals["worst concavity"] = st.slider(
-                "Worst Concavity Index", 0.00, 1.25, 0.32, 0.01,
-                help="Peak nuclear contour indentation severity."
-            )
-
-        run_bio = st.button("⚡ Run Diagnostic Analysis", use_container_width=True)
-        if "bio_ran" not in st.session_state:
-            st.session_state["bio_ran"] = True
-        if run_bio:
-            st.session_state["bio_ran"] = True
-
-    with out_col:
-        input_df = pd.DataFrame([[user_vals[f] for f in feat_names]], columns=feat_names)
-        bio_prob_mal = float(clf.predict_proba(input_df)[0][1])
-
-        benign_pts = bio_df[bio_df["malignant"] == 0]
-        malig_pts = bio_df[bio_df["malignant"] == 1]
-
-        fig_3d = go.Figure()
-        fig_3d.add_trace(go.Scatter3d(
-            x=benign_pts["mean radius"], y=benign_pts["mean concavity"], z=benign_pts["worst radius"],
-            mode="markers", name="Benign Cohort",
-            marker=dict(size=3.5, color="#00E5A3", opacity=0.58)
-        ))
-        fig_3d.add_trace(go.Scatter3d(
-            x=malig_pts["mean radius"], y=malig_pts["mean concavity"], z=malig_pts["worst radius"],
-            mode="markers", name="Malignant Cohort",
-            marker=dict(size=3.5, color="#FF2E54", opacity=0.58)
-        ))
-        fig_3d.add_trace(go.Scatter3d(
-            x=[user_vals["mean radius"]], y=[user_vals["mean concavity"]], z=[user_vals["worst radius"]],
-            mode="markers", name="Active Patient Sample",
-            marker=dict(size=9, color="#FFB020", symbol="diamond", line=dict(color="#FFFFFF", width=2))
-        ))
-        fig_3d.update_layout(
-            height=360,
-            margin=dict(l=0, r=0, t=28, b=0),
-            paper_bgcolor="rgba(0,0,0,0)",
-            plot_bgcolor="rgba(0,0,0,0)",
-            title=dict(text="3D Cellular Feature-Space Cluster (Drag to Orbit)", font=dict(color="#FF6B4A", size=13, family="JetBrains Mono")),
-            legend=dict(font=dict(color="#FFF8FA"), bgcolor="rgba(21,15,29,0.75)"),
-            scene=dict(
-                bgcolor="rgba(21, 15, 29, 0.55)",
-                xaxis=dict(title="Mean Radius", gridcolor="rgba(255,255,255,0.10)", color="#C2B8CC"),
-                yaxis=dict(title="Mean Concavity", gridcolor="rgba(255,255,255,0.10)", color="#C2B8CC"),
-                zaxis=dict(title="Worst Radius", gridcolor="rgba(255,255,255,0.10)", color="#C2B8CC")
-            )
-        )
-        st.plotly_chart(fig_3d, use_container_width=True)
-
-        g_col, f_col = st.columns([0.95, 1.05], gap="medium")
-        with g_col:
-            if bio_prob_mal >= 0.5:
-                st.markdown('<div class="verdict-high">🚨 HIGH MALIGNANCY RISK</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="verdict-low">✅ LOW RISK / BENIGN PROFILE</div>', unsafe_allow_html=True)
-            st.plotly_chart(build_risk_gauge(bio_prob_mal * 100, 50.0, "Biomarker Risk Index"),
-                            use_container_width=True, config={"displayModeBar": False})
-            st.plotly_chart(build_prob_breakdown_chart(bio_prob_mal),
-                            use_container_width=True, config={"displayModeBar": False})
-
-        with f_col:
-            importances = pd.Series(clf.feature_importances_, index=feat_names).sort_values(ascending=True)
-            imp_fig = go.Figure(go.Bar(
-                x=importances.values * 100,
-                y=[n.title() for n in importances.index],
-                orientation="h",
-                marker=dict(color=importances.values, colorscale=[[0, "#FFB020"], [0.5, "#FF6B4A"], [1, "#FF2E54"]]),
-                text=[f"{v * 100:.1f}%" for v in importances.values],
-                textposition="outside",
-                textfont=dict(color="#FFF8FA", size=10, family="JetBrains Mono")
-            ))
-            imp_fig.update_layout(
-                height=390,
-                margin=dict(l=10, r=42, t=30, b=10),
-                title=dict(text="Model Feature Importance (%)", font=dict(color="#FF6B4A", size=13, family="JetBrains Mono")),
-                paper_bgcolor="rgba(0,0,0,0)",
-                plot_bgcolor="rgba(0,0,0,0)",
-                xaxis=dict(range=[0, max(importances.values * 100) + 8], gridcolor="rgba(255,255,255,0.08)", tickfont=dict(color="#C2B8CC")),
-                yaxis=dict(tickfont=dict(color="#FFF8FA", size=11))
-            )
-            st.plotly_chart(imp_fig, use_container_width=True, config={"displayModeBar": False})
     st.markdown('</div>', unsafe_allow_html=True)
 
 

@@ -14,7 +14,7 @@ if st.query_params.get("workspace") == "detector":
             del st.query_params["workspace"]
             st.rerun()
 else:
-    st.set_page_config(page_title="Aetheris Spatial Diagnostics", layout="wide", initial_sidebar_state="collapsed")
+    st.set_page_config(page_title="Aetheris PCam Detector", layout="wide", initial_sidebar_state="collapsed")
     st.markdown(
         "<style>header[data-testid=stHeader]{display:none}"
         ".stMainBlockContainer,.block-container{max-width:none;padding:0}"

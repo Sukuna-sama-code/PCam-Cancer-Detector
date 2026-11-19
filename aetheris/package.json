@@ -1,7 +1,7 @@
 {
   "name": "aetheris",
   "version": "1.0.0",
-  "description": "Aetheris Spatial Diagnostics clinical discussion workspace",
+  "description": "PCam lymph-node patch detector",
   "scripts": {
     "build": "node build.mjs"
   },
