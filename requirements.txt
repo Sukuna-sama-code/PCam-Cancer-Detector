@@ -4,4 +4,6 @@ torchvision
 opencv-python-headless
 pillow
 numpy
+pandas
+plotly
 scikit-learn
