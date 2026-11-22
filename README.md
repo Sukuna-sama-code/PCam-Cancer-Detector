@@ -9,6 +9,8 @@ pinned: false
 
 # Aetheris — PCam Computational Pathology Workstation
 
+> **Live Demo:** **[Launch Aetheris Web App](https://sukuna-sama-code-pcam-cancer-detector.static.hf.space/)** · **[Hugging Face Space](https://huggingface.co/spaces/Sukuna-sama-code/Pcam-Cancer-Detector)**
+
 **Aetheris** is an editorial computational pathology workstation for inspecting `96×96 px` H&E lymph-node histopathology patches (PatchCamelyon / PCam) using a **Center-Aware ResNet-34** deep neural network, `4×` rotational Test-Time Augmentation, analytical Layer-4 Grad-CAM explainability, and an interactive 3D nuclear morphometry Random Forest explorer.
 
 It runs **100% client-side in your browser** for **$0 deployment** on **Hugging Face Static Spaces** or **GitHub Pages** via **ONNX Runtime Web (WebAssembly)**, with an optional local **FastAPI + PyTorch** backend mode.
