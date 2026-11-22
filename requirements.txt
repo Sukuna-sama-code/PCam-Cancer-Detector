@@ -1,8 +1,11 @@
-streamlit
+fastapi
+uvicorn[standard]
+python-multipart
 torch
 torchvision
 opencv-python-headless
 pillow
 numpy
 pandas
-plotly
+scikit-learn
+onnx

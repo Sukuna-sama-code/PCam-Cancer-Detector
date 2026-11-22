@@ -1,0 +1,73 @@
+{
+  "default_threshold": 0.1261,
+  "val_auc": 0.9667,
+  "test_auc": 0.9534,
+  "checkpoint_metrics": {
+    "best_val_auc": 0.9667,
+    "test_roc_auc": 0.9534,
+    "calibrated_test_acc": 0.8985,
+    "calibrated_test_f1": 0.8944,
+    "raw_test_acc_050": 0.8732,
+    "optimal_threshold": 0.1261
+  },
+  "model_url": "./models/pcam_resnet34_q8.onnx",
+  "model_size_bytes": 21763517,
+  "samples": [
+    {
+      "filename": "cancer_patch_1_idx1.png",
+      "label": "Metastatic reference \u2014 cancer_patch_1_idx1.png",
+      "short_name": "cancer patch 1 idx1",
+      "kind": "cancer",
+      "thumb_url": "./samples/cancer_patch_1_idx1.png"
+    },
+    {
+      "filename": "cancer_patch_2_idx3.png",
+      "label": "Metastatic reference \u2014 cancer_patch_2_idx3.png",
+      "short_name": "cancer patch 2 idx3",
+      "kind": "cancer",
+      "thumb_url": "./samples/cancer_patch_2_idx3.png"
+    },
+    {
+      "filename": "cancer_patch_3_idx4.png",
+      "label": "Metastatic reference \u2014 cancer_patch_3_idx4.png",
+      "short_name": "cancer patch 3 idx4",
+      "kind": "cancer",
+      "thumb_url": "./samples/cancer_patch_3_idx4.png"
+    },
+    {
+      "filename": "cancer_patch_4_idx6.png",
+      "label": "Metastatic reference \u2014 cancer_patch_4_idx6.png",
+      "short_name": "cancer patch 4 idx6",
+      "kind": "cancer",
+      "thumb_url": "./samples/cancer_patch_4_idx6.png"
+    },
+    {
+      "filename": "normal_patch_1_idx0.png",
+      "label": "Benign reference \u2014 normal_patch_1_idx0.png",
+      "short_name": "normal patch 1 idx0",
+      "kind": "normal",
+      "thumb_url": "./samples/normal_patch_1_idx0.png"
+    },
+    {
+      "filename": "normal_patch_2_idx2.png",
+      "label": "Benign reference \u2014 normal_patch_2_idx2.png",
+      "short_name": "normal patch 2 idx2",
+      "kind": "normal",
+      "thumb_url": "./samples/normal_patch_2_idx2.png"
+    },
+    {
+      "filename": "normal_patch_3_idx5.png",
+      "label": "Benign reference \u2014 normal_patch_3_idx5.png",
+      "short_name": "normal patch 3 idx5",
+      "kind": "normal",
+      "thumb_url": "./samples/normal_patch_3_idx5.png"
+    },
+    {
+      "filename": "normal_patch_4_idx9.png",
+      "label": "Benign reference \u2014 normal_patch_4_idx9.png",
+      "short_name": "normal patch 4 idx9",
+      "kind": "normal",
+      "thumb_url": "./samples/normal_patch_4_idx9.png"
+    }
+  ]
+}

@@ -1,0 +1,19 @@
+archive.zip
+histopathologic-cancer-detection/
+histopathologic-cancer-detection.zip
+sample_biopsy_patches.zip
+backup_previous_app_*/
+aetheris/
+evaluate_new_data.py/
+New folder/
+download.png
+download (1).png
+.git/
+__pycache__/
+*.pyc
+prompt.md
+app.py
+desktop.ini
+static/preview.html
+static/previews/
+random background.jpg

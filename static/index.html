@@ -1,0 +1,748 @@
+<!DOCTYPE html>
+<html lang="en" data-theme="gold-espresso">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="theme-color" content="#050506" />
+  <meta name="description" content="Aetheris — PCam Computational Pathology Workstation. Center-Aware ResNet-34, 4x rotational TTA, Layer-4 Grad-CAM optical curtain, and 3D biomarker analytics." />
+  <title>Aetheris | PCam Computational Pathology Workstation</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 48 48'%3E%3Crect width='48' height='48' rx='10' fill='%230B0B0E' stroke='%23FF8A00' stroke-width='2'/%3E%3Cpath d='M13 35L24 12l11 23M17.5 27h13' stroke='%23FFB800' fill='none' stroke-width='2.4' stroke-linecap='round'/%3E%3C/svg%3E" />
+  <link rel="stylesheet" href="./fonts/fonts.css" />
+  <link rel="stylesheet" href="./styles.css" />
+  <script src="https://cdn.plot.ly/plotly-2.35.2.min.js" onerror="this.onerror=null;this.src='./vendor/plotly-gl3d.min.js';"></script>
+  <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.21.0/dist/ort.wasm.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/utif@3.1.0/UTIF.js"></script>
+</head>
+<body>
+  <!-- ================================================================== -->
+  <!-- TOP STICKY ARCHITECTURAL NAVIGATION BAR                            -->
+  <!-- ================================================================== -->
+  <header class="topbar">
+    <div class="topbar-inner">
+      <a class="brand-lockup" href="#view-single" id="brand-home">
+        <div class="brand-emblem" aria-hidden="true">
+          <svg viewBox="0 0 28 28" fill="none">
+            <path d="M6 21L14 6L22 21M9.5 16.5H18.5" stroke="currentColor" stroke-width="2" stroke-linecap="square" />
+            <rect x="12.5" y="19.5" width="3" height="3" fill="var(--accent-hi, #FFB800)" />
+          </svg>
+        </div>
+        <div class="brand-text">
+          <span class="brand-name mono">AETHERIS</span>
+          <span class="brand-sub mono">PCAM PATHOLOGY v2</span>
+        </div>
+      </a>
+
+      <nav class="workspace-nav" role="tablist" aria-label="Pathology Workspaces">
+        <button class="nav-tab active" role="tab" aria-selected="true" data-view="single">
+          <span class="tab-num mono">01</span> Optics
+        </button>
+        <button class="nav-tab" role="tab" aria-selected="false" data-view="batch">
+          <span class="tab-num mono">02</span> Batch
+        </button>
+        <button class="nav-tab" role="tab" aria-selected="false" data-view="biomarker">
+          <span class="tab-num mono">03</span> 3D Biomarker
+        </button>
+        <button class="nav-tab" role="tab" aria-selected="false" data-view="insights">
+          <span class="tab-num mono">04</span> Insights
+        </button>
+      </nav>
+
+      <div class="topbar-actions">
+        <div id="bgthemes-dropdown" class="bgthemes-dropdown">
+          <button id="bgthemes-btn" class="rect-btn bgthemes-btn" type="button" aria-haspopup="menu" aria-expanded="false" title="Switch background &amp; color theme">
+            <img id="bgthemes-active-thumb" class="bgthemes-thumb" src="./themes/theme-1-gold-espresso.jpg" alt="" />
+            <span>BGThemes</span>
+            <span class="bgthemes-caret" aria-hidden="true">▾</span>
+          </button>
+          <div id="bgthemes-menu" class="bgthemes-menu hidden" role="menu" aria-label="Background themes">
+            <button class="theme-option active" type="button" role="menuitemradio" aria-checked="true" data-theme-pick="gold-espresso">
+              <img src="./themes/theme-1-gold-espresso.jpg" alt="" />
+              <div class="theme-opt-text">
+                <strong>1 · Liquid Gold &amp; Espresso</strong>
+                <small>Original Obsidian &amp; Gold</small>
+              </div>
+              <span class="theme-check mono">✓</span>
+            </button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-pick="espresso-marble">
+              <img src="./themes/theme-2-espresso-marble.jpg" alt="" />
+              <div class="theme-opt-text">
+                <strong>2 · Espresso &amp; Cream Marble</strong>
+                <small>Warm Ivory &amp; Champagne</small>
+              </div>
+              <span class="theme-check mono">✓</span>
+            </button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-pick="mocha-copper">
+              <img src="./themes/theme-3-mocha-copper.jpg" alt="" />
+              <div class="theme-opt-text">
+                <strong>3 · Mocha &amp; Copper Swirl</strong>
+                <small>Peach-Linen &amp; Copper-Coral</small>
+              </div>
+              <span class="theme-check mono">✓</span>
+            </button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-pick="cedar-slats">
+              <img src="./themes/theme-4-cedar-slats.jpg" alt="" />
+              <div class="theme-opt-text">
+                <strong>4 · Warm Cedar Wood Slats</strong>
+                <small>Crisp Ivory &amp; Smoked Walnut</small>
+              </div>
+              <span class="theme-check mono">✓</span>
+            </button>
+            <button class="theme-option" type="button" role="menuitemradio" aria-checked="false" data-theme-pick="chestnut-amber">
+              <img src="./themes/theme-5-chestnut-amber.jpg" alt="" />
+              <div class="theme-opt-text">
+                <strong>5 · Chestnut &amp; Molten Amber</strong>
+                <small>Silk Ivory &amp; Saffron</small>
+              </div>
+              <span class="theme-check mono">✓</span>
+            </button>
+          </div>
+        </div>
+        <div class="status-chip" title="PyTorch Model Engine Telemetry">
+          <span id="nav-status-dot" class="status-dot"></span>
+          <span id="nav-status-text">Initializing Engine…</span>
+          <span id="nav-latency-badge" class="status-latency mono hidden">— ms</span>
+        </div>
+        <button id="help-btn" class="rect-btn help-trigger-btn" type="button" aria-label="Help guide and terminology">
+          <span class="help-q mono">?</span> Help
+        </button>
+        <button id="about-btn" class="rect-btn" type="button" aria-label="Methodology and disclaimer">
+          Methodology
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================================================================== -->
+  <!-- ARCHITECTURAL BOUNDED FRAME (1px DASHED RAILS + 4px ANCHOR NODES)  -->
+  <!-- ================================================================== -->
+  <div class="arch-frame">
+    <main class="shell">
+      <!-- ================================================================ -->
+      <!-- HERO STAGE: THEMED BACKGROUND + TELEMETRY                        -->
+      <!-- ================================================================ -->
+      <section id="hero-pavilion" class="aetheris-hero">
+        <span class="rail-node node-tl" aria-hidden="true"></span>
+        <span class="rail-node node-tr" aria-hidden="true"></span>
+        <span class="rail-node node-bl" aria-hidden="true"></span>
+        <span class="rail-node node-br" aria-hidden="true"></span>
+
+        <div class="hero-hud hero-hud-br mono" aria-hidden="true">
+          FOV 96×96 // ROI 32×32 // 4× TTA
+        </div>
+
+        <div class="hero-content">
+          <div class="hero-pill">
+            <span class="amber-dot"></span>
+            <span class="mono">Center-Aware ResNet-34 · 4× Rotational TTA</span>
+            <span class="pill-arrow">→</span>
+          </div>
+
+          <h1 class="hero-title">
+            PCam <em>Histopathology</em><br />
+            in spatial <em>precision</em>
+          </h1>
+
+          <p class="hero-desc">
+            Inspect H&amp;E lymph-node biopsy patches with dual-pooling 32×32 center attention, real-time 4× orientation consensus, and Layer-4 Grad-CAM optical curtain telemetry.
+          </p>
+
+          <div class="hero-cta-row">
+            <button id="hero-analyze-cta" class="cta-stacked" type="button">
+              <span class="cta-label">Analyze Specimen</span>
+              <span class="cta-cap" aria-hidden="true">✦</span>
+            </button>
+            <button id="hero-batch-cta" class="rect-btn rect-btn-lg" type="button">
+              Screen All 8 Patches →
+            </button>
+          </div>
+        </div>
+
+        <!-- Integrated Bottom Architectural Telemetry Strip -->
+        <div class="hero-metrics-bar">
+          <div class="hero-metric-cell">
+            <small class="mono">BLIND ACCURACY</small>
+            <strong class="mono">98.80%</strong>
+          </div>
+          <div class="hero-metric-cell">
+            <small class="mono">500-PATCH ROC-AUC</small>
+            <strong class="mono">0.9998</strong>
+          </div>
+          <div class="hero-metric-cell">
+            <small class="mono">SENSITIVITY (0 FN)</small>
+            <strong class="mono">100.0%</strong>
+          </div>
+          <div class="hero-metric-cell">
+            <small class="mono">CHECKPOINT VAL AUC</small>
+            <strong id="hero-val-auc" class="mono">0.9667</strong>
+          </div>
+        </div>
+      </section>
+
+      <!-- HATCHED ARCHITECTURAL DIVIDER BAND -->
+      <div class="hatch-band" aria-hidden="true">
+        <span class="rail-node node-bl"></span>
+        <span class="rail-node node-br"></span>
+      </div>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 1: SINGLE-SLIDE OPTICS WORKSTATION                          -->
+      <!-- ================================================================ -->
+      <section id="view-single" class="view-section active" role="tabpanel">
+        <div class="section-head">
+          <div>
+            <div class="arch-badge">
+              <span class="badge-square">◈</span>
+              <span class="mono">01 // SINGLE-SLIDE OPTICS</span>
+            </div>
+            <h2 class="section-title">PCam <em>tissue analysis</em></h2>
+          </div>
+
+          <div class="opt-controls">
+            <label class="ctrl-inline" for="threshold-slider">
+              <span>Cutoff <b id="threshold-val" class="mono">0.126</b></span>
+              <input id="threshold-slider" type="range" min="0.01" max="0.99" step="0.005" value="0.126" />
+            </label>
+            <button id="reset-youden-btn" class="micro-chip-btn mono" type="button" title="Reset to Youden's J optimal cutoff">J=0.126</button>
+            <span class="ctrl-sep" aria-hidden="true"></span>
+            <label class="ctrl-inline" for="sharpen-slider">
+              <span>USM <b id="sharpen-val" class="mono">1.25</b></span>
+              <input id="sharpen-slider" type="range" min="0" max="2.5" step="0.05" value="1.25" />
+            </label>
+            <span class="ctrl-sep" aria-hidden="true"></span>
+            <label class="ctrl-check" for="enhance-toggle">
+              <input id="enhance-toggle" type="checkbox" checked />
+              <span>6× HD Lanczos-4</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- Specimen Acquisition Bento Panel -->
+        <div class="bento-card acq-panel">
+          <div class="acq-top-row">
+            <div class="acq-field">
+              <label for="sample-select" class="mono">REFERENCE BIOPSY ARCHIVE</label>
+              <select id="sample-select"></select>
+            </div>
+            <div class="acq-actions">
+              <input id="upload-input" type="file" accept=".png,.jpg,.jpeg,.tif,.tiff" hidden />
+              <div id="dropzone-single" class="dropzone-pill" tabindex="0" role="button" aria-label="Upload or drop biopsy patch">
+                <span>↑ Drop or upload <code>.tif / .png / .jpg</code></span>
+              </div>
+              <button id="run-analysis-btn" class="cta-stacked" type="button">
+                <span class="cta-label">Run 4× Analysis</span>
+                <span class="cta-cap" aria-hidden="true">✦</span>
+              </button>
+            </div>
+          </div>
+
+          <div class="filmstrip-wrap">
+            <div class="filmstrip-head">
+              <span class="mono-label">CURATED H&amp;E FILMSTRIP (CLICK SPECIMEN TO RUN 4× TTA)</span>
+              <span class="mono-note">RAW 96×96 TENSOR → MODEL · 6× HD DISPLAY ONLY</span>
+            </div>
+            <div id="sample-filmstrip" class="sample-filmstrip" role="listbox" aria-label="Reference biopsy patches"></div>
+          </div>
+        </div>
+
+        <!-- Telemetry & Mode Switcher Strip -->
+        <div class="telemetry-bar">
+          <div class="telemetry-items">
+            <span>Specimen <b id="meta-specimen">—</b></span>
+            <span id="meta-source" class="tag-pill mono">Reference bank</span>
+            <span>FOV <b id="meta-fov" class="mono">96×96 px</b></span>
+            <span>ROI <b class="mono">32×32 center</b></span>
+            <span>Intensity <b id="meta-intensity" class="mono">—</b></span>
+            <span>Inference <b id="meta-elapsed" class="mono">— ms</b></span>
+            <span id="meta-cursor-coords" class="coord-pill mono hidden">X — · Y —</span>
+          </div>
+          <div class="viewport-switch" role="group" aria-label="Inspection mode">
+            <button id="mode-split-btn" class="mini-btn active" type="button">Dual Viewports</button>
+            <button id="mode-curtain-btn" class="mini-btn" type="button">Optical Curtain</button>
+          </div>
+        </div>
+
+        <!-- Asymmetric 2-Column Diagnostic Bento Grid -->
+        <div class="diagnostic-grid">
+          <div id="slide-stage" class="slide-stage-col">
+            <!-- Animated 4x TTA Laser Scan Overlay -->
+            <div class="scan-overlay" aria-live="polite">
+              <div class="scan-beam"></div>
+              <div class="scan-badge-stack">
+                <div id="tta-angle-badge" class="scan-badge mono">4× TTA • ROT 0°</div>
+                <div class="scan-sub mono">CENTER-AWARE RESNET-34 · LAYER-4 GRAD-CAM</div>
+              </div>
+            </div>
+
+            <!-- Mode A: Synced Dual Viewports -->
+            <div id="dual-viewport-wrap" class="dual-viewports">
+              <article class="bento-card viewport-card">
+                <div class="card-top">
+                  <span class="card-title">H&amp;E brightfield</span>
+                  <span id="badge-hd-mode" class="mono-chip">6× LANCZOS-4 HD</span>
+                </div>
+                <div class="img-frame" id="frame-roi">
+                  <img id="img-roi" alt="H&amp;E Brightfield with 32x32 center ROI reticle" />
+                  <div class="crosshair-h" aria-hidden="true"></div>
+                  <div class="crosshair-v" aria-hidden="true"></div>
+                </div>
+                <p class="img-caption">Emerald target frame isolates the central 32×32 px metastatic zone.</p>
+              </article>
+
+              <article class="bento-card viewport-card">
+                <div class="card-top">
+                  <span class="card-title">Grad-CAM activation</span>
+                  <span class="mono-chip">LAYER-4 ATTENTION</span>
+                </div>
+                <div class="img-frame" id="frame-cam">
+                  <img id="img-cam" alt="Layer-4 Grad-CAM Heatmap" />
+                  <div class="crosshair-h" aria-hidden="true"></div>
+                  <div class="crosshair-v" aria-hidden="true"></div>
+                  <div class="heat-scale" aria-hidden="true"><span>LOW</span><i></i><span>HIGH</span></div>
+                </div>
+                <p class="img-caption">Crimson/gold contours pinpoint malignant feature attribution.</p>
+              </article>
+            </div>
+
+            <!-- Mode B: Interactive Draggable Optical Curtain -->
+            <div id="curtain-viewport-wrap" class="bento-card curtain-card hidden">
+              <div class="card-top">
+                <span class="card-title">Interactive Optical Curtain — Drag to Wipe Grad-CAM</span>
+                <span class="mono-chip">REAL-TIME SPLIT</span>
+              </div>
+              <div class="curtain-stage">
+                <img id="curtain-base-img" class="curtain-img" alt="H&amp;E Brightfield Base" />
+                <div id="curtain-clip" class="curtain-clip">
+                  <img id="curtain-top-img" class="curtain-img" alt="Grad-CAM Overlay" />
+                </div>
+                <span class="curtain-tag curtain-tag-left mono">GRAD-CAM LAYER 4</span>
+                <span class="curtain-tag curtain-tag-right mono">H&amp;E BRIGHTFIELD</span>
+                <div id="curtain-handle" class="curtain-handle"><span>↔</span></div>
+                <input id="curtain-slider" class="curtain-range" type="range" min="0" max="100" value="52" aria-label="Optical curtain divider" />
+              </div>
+              <p class="img-caption" style="text-align:center; margin-top:12px;">Drag across the specimen or press Left/Right arrow keys for precise inspection.</p>
+            </div>
+
+            <!-- 4x Rotational Telemetry Cards -->
+            <div class="bento-card rot-panel">
+              <div class="card-top">
+                <span class="card-title">4× Rotational TTA Telemetry</span>
+                <span id="tta-spread-chip" class="mono-chip">ORIENTATION INVARIANCE</span>
+              </div>
+              <div id="rot-cards-grid" class="rot-deck"></div>
+            </div>
+          </div>
+
+          <!-- Right Verdict & Attribution Column -->
+          <aside class="verdict-col">
+            <div class="bento-card verdict-card">
+              <div class="verdict-head-row">
+                <div>
+                  <div class="mono-label">MODEL OUTPUT</div>
+                  <h3 class="verdict-heading">Patch <em>classification</em></h3>
+                </div>
+                <button id="export-json-btn" class="micro-chip-btn mono" type="button" title="Export telemetry JSON">↓ JSON</button>
+              </div>
+
+              <div id="verdict-banner" class="verdict-pill benign">
+                <strong id="verdict-title">Awaiting analysis</strong>
+                <span id="verdict-sub">Select or upload a lymph-node biopsy patch</span>
+              </div>
+
+              <div class="prob-display">
+                <span id="prob-big" class="mono">—%</span>
+                <small>Mean positive-class score · 4 orientations</small>
+              </div>
+
+              <div class="prob-track-wrap">
+                <div class="prob-track"><div id="prob-bar-fill" class="prob-fill"></div></div>
+                <div id="cutoff-needle" class="cutoff-needle" title="Youden's J decision cutoff"></div>
+              </div>
+
+              <div class="cutoff-line">
+                <span>Decision cutoff (Youden's J)</span>
+                <b id="cutoff-readout" class="mono">12.60%</b>
+              </div>
+            </div>
+
+            <div class="bento-card">
+              <div class="card-top">
+                <span class="card-title">Spatial Attribution Breakdown</span>
+                <span class="mono-chip">EXPLAINABILITY</span>
+              </div>
+              <div id="chart-attribution" class="plotly-box-sm"></div>
+              <p class="img-caption">Center 32×32 ROI attention vs outer 96×96 contextual border &amp; 4× stability.</p>
+            </div>
+          </aside>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 2: BATCH SLIDE SCREENING & CSV AUDIT                        -->
+      <!-- ================================================================ -->
+      <section id="view-batch" class="view-section" role="tabpanel">
+        <div class="section-head">
+          <div>
+            <div class="arch-badge">
+              <span class="badge-square">▤</span>
+              <span class="mono">02 // COHORT TRIAGE</span>
+            </div>
+            <h2 class="section-title">Batch slide <em>screening</em></h2>
+          </div>
+          <div class="batch-head-actions">
+            <button id="run-builtin-batch-btn" class="rect-btn" type="button">✦ Run All Reference Patches</button>
+            <button id="download-csv-btn" class="rect-btn hidden" type="button">↓ Download CSV Report</button>
+          </div>
+        </div>
+
+        <div class="bento-card batch-controls">
+          <div>
+            <label class="mono-label" for="batch-files-input">MULTIPLE BIOPSY PATCHES (PNG / JPG / TIF)</label>
+            <label id="batch-dropzone" class="batch-dropzone" for="batch-files-input">
+              <span id="batch-files-label">Drop patches here or click to browse multiple slides</span>
+              <input id="batch-files-input" type="file" multiple accept=".png,.jpg,.jpeg,.tif,.tiff" hidden />
+            </label>
+            <label class="ctrl-check" style="margin-top:10px;" for="batch-builtin-check">
+              <input id="batch-builtin-check" type="checkbox" checked />
+              <span>Fallback to all 8 built-in reference patches when no files are uploaded</span>
+            </label>
+          </div>
+          <div>
+            <label class="mono-label" for="batch-gt-input">OPTIONAL GROUND-TRUTH CSV (id, label)</label>
+            <label class="batch-dropzone" for="batch-gt-input">
+              <span id="batch-gt-label">Attach <code>train_labels.csv</code> for live batch accuracy</span>
+              <input id="batch-gt-input" type="file" accept=".csv" hidden />
+            </label>
+          </div>
+          <div class="batch-btn-col">
+            <button id="run-batch-btn" class="cta-stacked" type="button">
+              <span class="cta-label">Run Batch Audit</span>
+              <span class="cta-cap" aria-hidden="true">✦</span>
+            </button>
+          </div>
+        </div>
+
+        <div id="batch-kpis" class="kpi-strip"></div>
+
+        <div class="bento-card table-card">
+          <div class="card-top">
+            <div class="table-title-group">
+              <span class="card-title">Ranked Clinical Summary Table</span>
+              <div id="batch-filters" class="viewport-switch hidden" role="group" aria-label="Filter batch rows">
+                <button class="mini-btn active" data-filter="all" type="button">All</button>
+                <button class="mini-btn" data-filter="METASTATIC" type="button">Metastatic</button>
+                <button class="mini-btn" data-filter="BENIGN" type="button">Benign</button>
+              </div>
+            </div>
+            <span id="batch-status" class="mono-chip">READY</span>
+          </div>
+          <div class="table-wrap">
+            <table class="clinical-table">
+              <thead>
+                <tr>
+                  <th>#</th><th>Patch</th><th>Specimen</th><th>Verdict</th><th>4× TTA Prob</th>
+                  <th>Risk Tier</th><th>Ground Truth</th><th>Audit</th>
+                  <th>0°</th><th>90°</th><th>180°</th><th>270°</th>
+                </tr>
+              </thead>
+              <tbody id="batch-table-body">
+                <tr><td colspan="12" class="empty-row">Click "Run All Reference Patches" or "Run Batch Audit" to screen your cohort.</td></tr>
+              </tbody>
+            </table>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 3: 3D BIOMARKER EXPLORER                                    -->
+      <!-- ================================================================ -->
+      <section id="view-biomarker" class="view-section" role="tabpanel">
+        <div class="section-head">
+          <div>
+            <div class="arch-badge">
+              <span class="badge-square">❖</span>
+              <span class="mono">03 // MORPHOMETRIC ANALYTICS</span>
+            </div>
+            <h2 class="section-title">3D Biomarker <em>explorer</em></h2>
+          </div>
+          <div class="bio-head-right">
+            <div class="preset-group" role="group" aria-label="Clinical profiles">
+              <button class="mini-btn" id="bio-preset-benign" type="button">Benign Typical</button>
+              <button class="mini-btn active" id="bio-preset-borderline" type="button">Borderline</button>
+              <button class="mini-btn" id="bio-preset-malignant" type="button">Malignant High-Risk</button>
+            </div>
+            <span id="bio-acc-pill" class="tag-pill mono">RF Pipeline Active</span>
+          </div>
+        </div>
+
+        <div class="biomarker-grid">
+          <div class="bento-card">
+            <div class="card-top">
+              <span class="card-title">Nuclear Morphometry Inputs</span>
+              <span class="mono-chip">LIVE RF MODEL</span>
+            </div>
+            <div class="slider-group-label mono">NUCLEAR GEOMETRY</div>
+            <div id="biomarker-sliders-geom" class="slider-stack"></div>
+            <div class="slider-group-label mono">BOUNDARY IRREGULARITY</div>
+            <div id="biomarker-sliders-shape" class="slider-stack"></div>
+            <button id="run-biomarker-btn" class="cta-stacked" type="button" style="width:100%; margin-top:12px;">
+              <span class="cta-label">Recalculate 3D Risk</span>
+              <span class="cta-cap" aria-hidden="true">✦</span>
+            </button>
+          </div>
+
+          <div class="bio-right">
+            <div class="bento-card">
+              <div class="card-top">
+                <span class="card-title">3D Cellular Feature-Space Cluster (Drag to Orbit)</span>
+                <span class="mono-chip">WEBGL 3D SCATTER</span>
+              </div>
+              <div id="bio-3d-plot" class="plotly-box-lg"></div>
+            </div>
+
+            <div class="bio-subgrid">
+              <div class="bento-card">
+                <div class="card-top">
+                  <span class="card-title">Patient Risk Gauge</span>
+                  <span id="bio-tier-chip" class="mono-chip">—</span>
+                </div>
+                <div id="bio-verdict" class="verdict-pill benign"><strong>Initializing…</strong></div>
+                <div id="bio-gauge-plot" class="svg-gauge-box"></div>
+              </div>
+              <div class="bento-card">
+                <div class="card-top">
+                  <span class="card-title">Feature Importance (%)</span>
+                  <span class="mono-chip">RANDOM FOREST</span>
+                </div>
+                <div id="bio-imp-plot" class="plotly-box-md"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <!-- ================================================================ -->
+      <!-- VIEW 4: MODEL INSIGHTS & VERIFIED 500-PATCH BENCHMARK            -->
+      <!-- ================================================================ -->
+      <section id="view-insights" class="view-section" role="tabpanel">
+        <div class="section-head">
+          <div>
+            <div class="arch-badge">
+              <span class="badge-square">▣</span>
+              <span class="mono">04 // CLINICAL VALIDATION</span>
+            </div>
+            <h2 class="section-title">Model architecture &amp; <em>benchmarks</em></h2>
+          </div>
+          <span class="tag-pill mono">500-Patch Blind Audit</span>
+        </div>
+
+        <div class="kpi-strip">
+          <div class="bento-card kpi-card"><small>500-Sample ROC-AUC</small><strong class="mono">0.9998</strong><span>Blind PCam subset</span></div>
+          <div class="bento-card kpi-card"><small>Overall Accuracy</small><strong class="mono">98.80%</strong><span>494 / 500 patches</span></div>
+          <div class="bento-card kpi-card"><small>Sensitivity (Cancer)</small><strong class="mono">100.00%</strong><span>204 / 204 TP · 0 FN</span></div>
+          <div class="bento-card kpi-card"><small>Specificity (Normal)</small><strong class="mono">97.97%</strong><span>290 / 296 TN · 6 FP</span></div>
+        </div>
+
+        <div class="hatch-band hatch-band-sm" aria-hidden="true">
+          <span class="rail-node node-tl"></span><span class="rail-node node-tr"></span>
+          <span class="rail-node node-bl"></span><span class="rail-node node-br"></span>
+        </div>
+
+        <div class="insights-grid">
+          <div class="bento-card">
+            <div class="card-top">
+              <span class="card-title">Verified Confusion Matrix (N = 500 Patches)</span>
+              <span class="mono-chip">ZERO FALSE NEGATIVES</span>
+            </div>
+            <div id="insights-cm-plot" class="plotly-box-lg"></div>
+            <div id="cm-inspector" class="cm-inspector">
+              <button type="button" class="cm-cell-chip tn active" data-cm="tn">TN: 290</button>
+              <button type="button" class="cm-cell-chip fp" data-cm="fp">FP: 6</button>
+              <button type="button" class="cm-cell-chip fn" data-cm="fn">FN: 0</button>
+              <button type="button" class="cm-cell-chip tp" data-cm="tp">TP: 204</button>
+            </div>
+            <p id="cm-note" class="img-caption">TN = 290: Benign lymph-node patches correctly cleared with zero false-negative escapes.</p>
+          </div>
+
+          <div class="bento-card arch-card">
+            <div class="card-top">
+              <span class="card-title">Center-Aware ResNet-34 Design</span>
+              <span class="mono-chip">PYTORCH DUAL-POOL</span>
+            </div>
+            <div class="arch-flow">
+              <div class="arch-step">
+                <span class="arch-idx mono">01</span>
+                <div>
+                  <strong>High-Resolution 3×3 Stem</strong>
+                  <p>Replaces 7×7 stride-2 conv &amp; maxpool with <code>Conv2d(3,64,3,1,1)</code> + <code>BN</code> + <code>ReLU</code> so 96×96 H&amp;E nuclei retain crisp cellular detail down to a 12×12 Layer-4 map.</p>
+                </div>
+              </div>
+              <div class="arch-step">
+                <span class="arch-idx mono">02</span>
+                <div>
+                  <strong>Dual-Pooling Center Fusion</strong>
+                  <p>Concatenates Global Average Pool (512-dim) with central 32×32 ROI slice pool (512-dim) → 1024 → 256 → 1 matching PCam's central-region metastatic definition.</p>
+                </div>
+              </div>
+              <div class="arch-step">
+                <span class="arch-idx mono">03</span>
+                <div>
+                  <strong>4× Rotational TTA Consensus</strong>
+                  <p>Averages sigmoid probabilities across <code>0°</code>, <code>90°</code>, <code>180°</code>, and <code>270°</code> views (Val AUC: <code id="ins-val-auc">0.9667</code>, Test AUC: <code id="ins-test-auc">0.9534</code>, Test Acc: <code id="ins-test-acc">89.85%</code>).</p>
+                </div>
+              </div>
+              <div class="arch-step">
+                <span class="arch-idx mono">04</span>
+                <div>
+                  <strong>Youden's J Threshold Calibration</strong>
+                  <p>Calibrated cutoff at <code id="ins-thresh">0.126</code> optimizes clinical safety, achieving <b>TP = 204, TN = 290, FP = 6, FN = 0</b> on the 500-patch blind test.</p>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      <footer class="site-footer">
+        <span class="mono"><strong>AETHERIS</strong> // PCAM COMPUTATIONAL PATHOLOGY WORKSTATION</span>
+        <span class="mono">CENTER-AWARE RESNET-34 · 4× TTA · LAYER-4 GRAD-CAM · RESEARCH USE ONLY</span>
+      </footer>
+    </main>
+  </div>
+
+  <!-- Methodology Modal -->
+  <dialog id="about-dialog" class="aetheris-dialog">
+    <div class="dialog-head">
+      <span class="mono-label">AETHERIS // METHODOLOGY &amp; PROVENANCE</span>
+      <button id="close-about-btn" class="rect-btn" type="button" aria-label="Close modal">✕</button>
+    </div>
+    <h3>Architectural <em>optical precision</em> meets PyTorch pathology.</h3>
+    <p>
+      Every prediction in this workstation runs live through the <code>CenterAwareResNet34</code> architecture exported from <code>pcam_deployment_bundle.pt</code> (executing client-side via ONNX Runtime WebAssembly, or via FastAPI when running locally). Display optics (6× HD upscaling, luminance contrast enhancement, Unsharp Masking) affect only visual rendering—raw 96×96 tensors reach the model.
+    </p>
+    <div class="dialog-grid">
+      <div><strong>01 · Single-Slide</strong><span>4× rotational TTA, Grad-CAM Layer 4, Optical Curtain, and ROI attribution.</span></div>
+      <div><strong>02 · Batch Triage</strong><span>Multi-patch screening with optional ground-truth CSV accuracy auditing.</span></div>
+      <div><strong>03 · 3D Biomarker</strong><span>Interactive Random Forest morphometric risk explorer on 569 cases.</span></div>
+      <div><strong>04 · Insights</strong><span>Verified 500-patch blind benchmark and dual-pooling architecture audit.</span></div>
+    </div>
+    <p class="dialog-disclaimer">Research workstation only — not cleared for primary clinical diagnosis.</p>
+    <button id="done-about-btn" class="cta-stacked" type="button" style="width:100%;">
+      <span class="cta-label">Return to Workstation</span>
+      <span class="cta-cap" aria-hidden="true">→</span>
+    </button>
+  </dialog>
+
+  <!-- Moving Theme-Reactive Heart Feedback Button (Outer Right Gutter) -->
+  <button id="feedback-rail-btn" class="feedback-rail-btn" type="button" aria-label="Share feedback">
+    <span class="feedback-heart-ring" aria-hidden="true">
+      <svg class="feedback-heart-svg" viewBox="0 0 24 24">
+        <path d="M12 20.6C11.7 20.6 11.4 20.5 11.2 20.3C6.1 16.2 2.8 13.1 2.8 8.9C2.8 5.9 5.1 3.7 8 3.7C9.7 3.7 11.2 4.5 12 5.7C12.8 4.5 14.3 3.7 16 3.7C18.9 3.7 21.2 5.9 21.2 8.9C21.2 13.1 17.9 16.2 12.8 20.3C12.6 20.5 12.3 20.6 12 20.6Z" />
+      </svg>
+    </span>
+    <span class="feedback-rail-label mono">Feedback</span>
+  </button>
+
+  <!-- Student-Friendly Help & Terminology Guide Modal -->
+  <dialog id="help-dialog" class="aetheris-dialog aetheris-dialog-lg">
+    <div class="dialog-head">
+      <span class="mono-label">AETHERIS // STUDENT &amp; USER GUIDE</span>
+      <button id="close-help-btn" class="rect-btn" type="button" aria-label="Close help guide">✕</button>
+    </div>
+    <h3>How Aetheris works, in <em>plain English</em>.</h3>
+    <p>
+      Aetheris checks small microscope snapshots of lymph-node tissue (<code>96×96 px</code>) to spot signs of metastatic breast cancer cells, and shows you <em>where</em> and <em>why</em> the neural network noticed something suspicious.
+    </p>
+
+    <div class="help-steps">
+      <div class="help-step-pill"><span class="mono">STEP 1</span><strong>Pick or drop a slide</strong><small>Select one of the 8 reference biopsy patches or upload your own <code>.png</code> / <code>.jpg</code> / <code>.tif</code> patch.</small></div>
+      <div class="help-step-pill"><span class="mono">STEP 2</span><strong>4-Angle Check</strong><small>The model rotates the patch 4 ways (<code>0°</code>, <code>90°</code>, <code>180°</code>, <code>270°</code>) and averages all 4 scores.</small></div>
+      <div class="help-step-pill"><span class="mono">STEP 3</span><strong>Heatmap Inspection</strong><small>Compare H&amp;E brightfield against Grad-CAM using Dual Viewports or drag the Optical Curtain.</small></div>
+    </div>
+
+    <div class="mono-label" style="margin-top:14px;">KEY TERMS SIMPLIFIED (COMMONLY ASKED DOUBTS)</div>
+    <div class="help-glossary">
+      <div class="help-card">
+        <strong>1. Why is there a green 32×32 box inside a 96×96 image? (FOV vs. ROI)</strong>
+        <p>In the PatchCamelyon (PCam) dataset, a slide is labeled positive <b>only if at least one cancer cell falls inside the central 32×32 pixel square (ROI)</b>. The surrounding 96×96 area (FOV) gives tissue context, while our model pools both the whole patch and the center box separately so border cells don't fool it.</p>
+      </div>
+      <div class="help-card">
+        <strong>2. Why is Youden's J Decision Cutoff <code>0.126</code> (12.6%) instead of <code>50%</code>?</strong>
+        <p>In cancer screening, <b>missing a real tumor (False Negative) is far worse than double-checking a borderline spot (False Positive)</b>. Youden's J mathematically finds the threshold on validation ROC curves that maximizes <code>Sensitivity + Specificity − 1</code>. Setting it at <code>0.126</code> caught <b>100% of cancer patches (0 FN)</b> in our 500-patch audit. Dragging Cutoff higher makes the model stricter; lowering it makes it more cautious.</p>
+      </div>
+      <div class="help-card">
+        <strong>3. What is 4× Rotational TTA &amp; TTA Stability?</strong>
+        <p><b>TTA (Test-Time Augmentation)</b> rotates the same biopsy <code>0°</code>, <code>90°</code>, <code>180°</code>, and <code>270°</code> because tissue under a microscope has no "up" direction. Averaging all 4 predictions removes orientation bias. <b>TTA Stability</b> (closer to <code>100%</code>) means the model gave consistent scores across every angle.</p>
+      </div>
+      <div class="help-card">
+        <strong>4. What do Grad-CAM &amp; Spatial Attribution (Center Peak vs. Outer Context) mean?</strong>
+        <p><b>Layer-4 Grad-CAM</b> highlights which cells pushed the AI toward "Metastatic" (red/yellow = strong signal, blue = calm background). <b>Center Peak / Mean</b> measures heat inside the 32×32 target zone vs. <b>Outer Context</b> outside it—helping you confirm the AI looked at actual nuclei inside the ROI.</p>
+      </div>
+      <div class="help-card">
+        <strong>5. Do 6× HD Lanczos-4 &amp; USM Sharpness change the AI's prediction?</strong>
+        <p><b>No!</b> Those controls are strictly <b>display optics</b> for human eyes (6× high-res scaling, luminance contrast balancing, and Unsharp Masking edge crispness). The ONNX/PyTorch ResNet-34 model always receives the untouched raw <code>96×96</code> pixel patch.</p>
+      </div>
+      <div class="help-card">
+        <strong>6. What are ROC-AUC, Sensitivity &amp; Specificity in Model Insights?</strong>
+        <p><b>Sensitivity (100.0%)</b> = out of all true cancer patches, how many we caught (204/204). <b>Specificity (97.97%)</b> = out of all healthy patches, how many we cleared (290/296). <b>ROC-AUC (0.9998)</b> measures overall ranking separation across all cutoffs (<code>1.0</code> is perfect).</p>
+      </div>
+      <div class="help-card">
+        <strong>7. How is Tab 03 (3D Biomarker Explorer) different from Tab 01?</strong>
+        <p>Tab 01 analyzes raw H&amp;E microscope images using PyTorch CNNs. Tab 03 is a separate <b>tabular Random Forest model</b> trained on 10 measured cell-nucleus numbers (radius, concavity, perimeter) from the Wisconsin dataset—move sliders or presets to see how cell geometry shifts risk in 3D space.</p>
+      </div>
+    </div>
+
+    <button id="done-help-btn" class="cta-stacked" type="button" style="width:100%; margin-top:14px;">
+      <span class="cta-label">Got It — Back to Workstation</span>
+      <span class="cta-cap" aria-hidden="true">→</span>
+    </button>
+  </dialog>
+
+  <!-- Interactive Feedback Modal -->
+  <dialog id="feedback-dialog" class="aetheris-dialog">
+    <div class="dialog-head">
+      <span class="mono-label">AETHERIS // WORKSTATION FEEDBACK</span>
+      <button id="close-feedback-btn" class="rect-btn" type="button" aria-label="Close feedback modal">✕</button>
+    </div>
+    <h3>Share your <em>impressions</em>.</h3>
+    <p>Rate your experience or suggest improvements for the optical workstation or themes.</p>
+
+    <form id="feedback-form" class="feedback-form">
+      <div>
+        <span class="mono-label">RATING</span>
+        <div id="feedback-hearts" class="feedback-hearts" role="radiogroup" aria-label="Rating out of 5">
+          <button type="button" class="fb-heart-btn active" data-rate="1" aria-label="1 heart">♥</button>
+          <button type="button" class="fb-heart-btn active" data-rate="2" aria-label="2 hearts">♥</button>
+          <button type="button" class="fb-heart-btn active" data-rate="3" aria-label="3 hearts">♥</button>
+          <button type="button" class="fb-heart-btn active" data-rate="4" aria-label="4 hearts">♥</button>
+          <button type="button" class="fb-heart-btn active" data-rate="5" aria-label="5 hearts">♥</button>
+          <span id="feedback-rate-text" class="mono">5 / 5</span>
+        </div>
+      </div>
+
+      <div>
+        <span class="mono-label">TOPIC</span>
+        <div id="feedback-cats" class="feedback-cats">
+          <button type="button" class="micro-chip-btn active" data-cat="UI &amp; Themes">UI &amp; Themes</button>
+          <button type="button" class="micro-chip-btn" data-cat="Model &amp; Optics">Model &amp; Optics</button>
+          <button type="button" class="micro-chip-btn" data-cat="Feature Idea">Feature Idea</button>
+          <button type="button" class="micro-chip-btn" data-cat="Bug Report">Bug Report</button>
+        </div>
+      </div>
+
+      <div>
+        <label class="mono-label" for="feedback-msg">COMMENTS (OPTIONAL)</label>
+        <textarea id="feedback-msg" class="feedback-textarea" rows="3" placeholder="What works great or what should we improve?"></textarea>
+      </div>
+
+      <button id="submit-feedback-btn" class="cta-stacked" type="submit" style="width:100%;">
+        <span class="cta-label">Send Feedback</span>
+        <span class="cta-cap" aria-hidden="true">♥</span>
+      </button>
+    </form>
+  </dialog>
+
+  <div id="toast-banner" class="toast-banner hidden" role="status" aria-live="polite"></div>
+
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
